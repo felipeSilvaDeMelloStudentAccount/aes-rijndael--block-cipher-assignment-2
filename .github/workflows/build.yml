@@ -3,7 +3,7 @@ name: C Build
 on:
   push:
     branches:
-      - main  # Setting main branch to trigger the build.
+      - main  # Set this to the branch you want to trigger the build.
 
 jobs:
   build:
@@ -11,20 +11,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3  # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it.
-
-    - name: Set up C Compiler
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.13.0'  # Specify the Python version.
-
-    - name: Install dependencies (if any)
-      run: sudo apt-get update && sudo apt-get install -y 
-      
     - name: Build
       run: |
         make all
         # This command builds your project using the Makefile. Adjust if necessary.
 
+    # Optional: Clean up
     - name: Clean (Optional)
       run: make clean
-      # This step is optional, and can be used to clean up any build artifacts.
+      # This step is optional and can be used to clean up any build artifacts.
