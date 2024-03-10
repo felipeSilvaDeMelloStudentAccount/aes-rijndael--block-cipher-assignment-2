@@ -1,17 +1,30 @@
-CC ?= cc
+name: C Build
 
-.PHONY: all
-all: main rijndael.so
+on:
+  push:
+    branches:
+      - main  # Setting main branch to trigger the build.
 
-main: rijndael.o main.c
-	$(CC) -o main main.c rijndael.o
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Specifies the runner environment.
 
-rijndael.o: rijndael.c rijndael.h
-	$(CC) -o rijndael.o -fPIC -c rijndael.c
+    steps:
+    - uses: actions/checkout@v3  # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it.
 
-rijndael.so: rijndael.o
-	$(CC) -o rijndael.so -shared rijndael.o
+    - name: Set up C Compiler
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.3'  # Specify the Python version.
 
-clean:
-	rm -f *.o *.so
-	rm -f main
+    - name: Install dependencies (if any)
+      run: sudo apt-get update && sudo apt-get install -y 
+      
+    - name: Build
+      run: |
+        make all
+        # This command builds your project using the Makefile. Adjust if necessary.
+
+    - name: Clean (Optional)
+      run: make clean
+      # This step is optional, and can be used to clean up any build artifacts.
