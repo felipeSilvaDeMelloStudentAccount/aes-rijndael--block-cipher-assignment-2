@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest  # Specifies the runner environment.
 
     steps:
-    - uses: actions/checkout@v3  # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it.
+    - uses: actions/checkout@v4  # Checks out your repository under $GITHUB_WORKSPACE, so your job can access it.
     - name: Build
       run: |
         make all
