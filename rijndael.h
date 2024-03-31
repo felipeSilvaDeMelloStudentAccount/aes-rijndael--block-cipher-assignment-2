@@ -1,12 +1,16 @@
 /*
- * TODO: Add your name and student number here, along with
- *       a brief description of this code.
+ * Felipe Silva de Mello
+ * D23125661
+ * This file is an interface of rijandael.c file 
+ * which contains the complex implemention of the encryption and decryption functions
  */
 
+// This file contains the function prototypes for the main encryption and decryption functions
 #ifndef RIJNDAEL_H
 #define RIJNDAEL_H
-
+// Define the block size and the number of rounds
 #define BLOCK_ACCESS(block, row, col) (block[(row * 4) + col])
+// Define the block size and the number of rounds
 #define BLOCK_SIZE 16
 
 /*
