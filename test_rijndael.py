@@ -30,8 +30,26 @@ class TestSubBytes(unittest.TestCase):
             for i in range(16):
                 self.assertEqual(self.test_input[i], self.expected_failure_output[i], "SubBytes transformation failed on failure scenario.")
 
-    def tearDown(self):
-        pass
+class TestShiftRows(unittest.TestCase):
+    def setUp(self):
+        self.rijndael = ctypes.CDLL('./rijndael.so')
+        self.test_input = (ctypes.c_ubyte * 16)(*[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+        self.expected_after_shift = (ctypes.c_ubyte * 16)(*[0, 5, 10, 15, 4, 9, 14, 3, 8, 13, 2, 7, 12, 1, 6, 11])
+
+    def test_shift_rows_correctness(self):
+        self.rijndael.shift_rows(self.test_input)
+        for i in range(16):
+            self.assertEqual(self.test_input[i], self.expected_after_shift[i], f"Byte {i} did not match expected value after shift_rows.")
+
+    def test_shift_rows_first_row_unchanged(self):
+        # Correctly identifying the first row's elements before the shift
+        original_first_row = [self.test_input[i] for i in range(0, 16, 4)]
+        self.rijndael.shift_rows(self.test_input)
+        # Correctly identifying the first row's elements after the shift
+        shifted_first_row = [self.test_input[i] for i in range(0, 16, 4)]
+        self.assertEqual(original_first_row, shifted_first_row, "First row was altered by shift_rows when it should remain unchanged.")
+
+
 
 def run():
     unittest.main()

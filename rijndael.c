@@ -39,7 +39,34 @@ void sub_bytes(unsigned char *block) {
 }
 
 void shift_rows(unsigned char *block) {
-  // TODO: Implement me!
+    unsigned char temp;
+
+    // Row 1 doesn't shift (i.e., row 0 in 0-indexed)
+
+    // Row 2 
+    //shifts 1 to the left
+    temp = block[1];
+    block[1] = block[5];
+    block[5] = block[9];
+    block[9] = block[13];
+    block[13] = temp;
+
+    // Row 3 
+    // shifts 2 to the left
+    temp = block[2];
+    block[2] = block[10];
+    block[10] = temp;
+    temp = block[6];
+    block[6] = block[14];
+    block[14] = temp;
+
+    // Row 4 
+    // shifts 3 to the left (or one to the right)
+    temp = block[15];
+    block[15] = block[11];
+    block[11] = block[7];
+    block[7] = block[3];
+    block[3] = temp;
 }
 
 void mix_columns(unsigned char *block) {
