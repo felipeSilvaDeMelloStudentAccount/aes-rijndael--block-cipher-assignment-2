@@ -8,11 +8,10 @@
 #include <stdlib.h>
 #include "rijndael.h"
 
-// Define the block size and the number of rounds
 
-//Define the S-box to lookup and perform the swaps operations during the encryption and decryption process
+// Define the S-box to lookup and perform the swaps operations during the encryption and decryption process
 // Each byte in the block will be replaced by the corresponding byte in the S-box table 
-static const unsigned char s_box[256] = {
+static const unsigned char S_BOX[256] = {
     // 0     1     2     3     4     5     6     7     8     9     A     B
     // C     D     E     F
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67,
@@ -28,12 +27,13 @@ static const unsigned char s_box[256] = {
     0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe,
 };
 
+
 /*
  * Operations used when encrypting a block
  */
 void sub_bytes(unsigned char *block) {
     for(int i=0; i<BLOCK_SIZE; i++){
-        block[i] = s_box[block[i]];
+        block[i] = S_BOX[block[i]];
     }
 
 }
@@ -69,8 +69,16 @@ void shift_rows(unsigned char *block) {
     block[3] = temp;
 }
 
-void mix_columns(unsigned char *block) {
-  // TODO: Implement me!
+void mix_columns(unsigned char *state) {
+      unsigned char tmp, tm, t;
+    for (int i = 0; i < 4; ++i) {
+        t = state[i*4];
+        tmp = state[i*4] ^ state[i*4+1] ^ state[i*4+2] ^ state[i*4+3] ;
+        tm = state[i*4] ^ state[i*4+1]; tm = XTIME(tm);  state[i*4] ^= tm ^ tmp;
+        tm = state[i*4+1] ^ state[i*4+2]; tm = XTIME(tm);  state[i*4+1] ^= tm ^ tmp;
+        tm = state[i*4+2] ^ state[i*4+3]; tm = XTIME(tm);  state[i*4+2] ^= tm ^ tmp;
+        tm = state[i*4+3] ^ t; tm = XTIME(tm);  state[i*4+3] ^= tm ^ tmp;
+    }
 }
 
 /*
