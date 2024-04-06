@@ -1,6 +1,8 @@
 import unittest
 import ctypes
 
+
+
 class TestSubBytes(unittest.TestCase):
     """
     Tests sub bytes
@@ -122,28 +124,38 @@ class TestInvertSubBytes(unittest.TestCase):
         # Check if it correctly inverts back to 0xFF
         self.assertEqual(test_input[0], 0xFF, "InvertSubBytes transformation failed.")
 
-class TestInvertShiftRows(unittest.TestCase):
+class TestInvMixColumns(unittest.TestCase):
     def setUp(self):
-        self.rijndael = ctypes.CDLL("./rijndael.so")
-        # Initialize with a state that would result AFTER applying shift_rows
-        # This is the state we expect AFTER shift_rows and BEFORE invert_shift_rows
-        self.test_input = (ctypes.c_ubyte * 16)(
-            0x00, 0x05, 0x0A, 0x0F,  # Row 0 remains unchanged
-            0x04, 0x09, 0x0E, 0x03,  # Row 1 shifted right by 1 (undo left shift of 1)
-            0x08, 0x0D, 0x02, 0x07,  # Row 2 shifted right by 2 (undo left shift of 2)
-            0x0C, 0x01, 0x06, 0x0B)  # Row 3 shifted right by 3 (undo left shift of 3)
+        # Load the shared library containing the inv_mix_columns implementation
+        self.rijndael_lib = ctypes.CDLL("./rijndael.so")
+        
+        # Specify the argument and return types for the inv_mix_columns function
+        # This function modifies the block in-place and does not return a value
+        self.rijndael_lib.inv_mix_columns.argtypes = [ctypes.POINTER(ctypes.c_ubyte * 16)]
+        self.rijndael_lib.inv_mix_columns.restype = None
 
-    def test_invert_shift_rows_correctness(self):
-        # Expected output is the original state before shift_rows was applied
-        expected_output = (ctypes.c_ubyte * 16)(*range(16))
+        # Define a test case: input and expected output are derived from known AES examples
+        self.test_input = (ctypes.c_ubyte * 16)(
+            0x04, 0xe0, 0x48, 0x28,
+            0x66, 0xcb, 0xf8, 0x06,
+            0x81, 0x19, 0xd3, 0x26,
+            0xe5, 0x9a, 0x7a, 0x4c)
+        self.expected_output = (ctypes.c_ubyte * 16)(
+            0xd4, 0xbf, 0x5d, 0x30,
+            0xe0, 0xb4, 0x52, 0xae,
+            0xb8, 0x41, 0x11, 0xf1,
+            0x1e, 0x27, 0x98, 0xe5)
+
+    def test_inv_mix_columns(self):
+        # Apply the inv_mix_columns operation to the test input
+        self.rijndael_lib.inv_mix_columns(self.test_input)
         
-        # Apply invert_shift_rows to the test input
-        self.rijndael.invert_shift_rows(self.test_input)
-        
-        # Verify that each byte is correctly reverted to its original position
+        # Verify each byte of the output matches the expected output
         for i in range(16):
-            self.assertEqual(self.test_input[i], expected_output[i],
-                             f"Byte {i} did not match expected value after invert_shift_rows.")
+            with self.subTest(i=i):
+                self.assertEqual(self.test_input[i], self.expected_output[i],
+                                 f"Byte {i} mismatch: expected {self.expected_output[i]}, got {self.test_input[i]}")
+    
 
 def run():
     unittest.main()

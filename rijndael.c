@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include "rijndael.h"
+#include <stdbool.h> 
 
 
 // Define the S-box to lookup and perform the swaps operations during the encryption and decryption process
@@ -57,8 +58,8 @@ void sub_bytes(unsigned char *block) {
     for(int i=0; i<BLOCK_SIZE; i++){
         block[i] = S_BOX[block[i]];
     }
-
 }
+
 
 void shift_rows(unsigned char *block) {
     unsigned char temp;
@@ -88,18 +89,33 @@ void shift_rows(unsigned char *block) {
     block[3] = temp;
 }
 
-void mix_columns(unsigned char *block) {
-      unsigned char tmp, tm, t;
-    for (int i = 0; i < 4; ++i) {
-        t = block[i*4];
-        tmp = block[i*4] ^ block[i*4+1] ^ block[i*4+2] ^ block[i*4+3] ;
-        tm = block[i*4] ^ block[i*4+1]; tm = XTIME(tm);  block[i*4] ^= tm ^ tmp;
-        tm = block[i*4+1] ^ block[i*4+2]; tm = XTIME(tm);  block[i*4+1] ^= tm ^ tmp;
-        tm = block[i*4+2] ^ block[i*4+3]; tm = XTIME(tm);  block[i*4+2] ^= tm ^ tmp;
-        tm = block[i*4+3] ^ t; tm = XTIME(tm);  block[i*4+3] ^= tm ^ tmp;
-    }
+void mix_single_column(unsigned char *a) {
+    unsigned char t = a[0] ^ a[1] ^ a[2] ^ a[3];
+    unsigned char tempFirstElement = a[0];
+
+    a[0] ^= t ^ XTIME(a[0] ^ a[1]);
+    a[1] ^= t ^ XTIME(a[1] ^ a[2]);
+    a[2] ^= t ^ XTIME(a[2] ^ a[3]);
+    a[3] ^= t ^ XTIME(a[3] ^ tempFirstElement);
 }
 
+void mix_columns(unsigned char *block) {
+    unsigned char column[4];
+    for (int col = 0; col < 4; ++col) {
+        // Extract the column from the block
+        for (int row = 0; row < 4; ++row) {
+            column[row] = BLOCK_ACCESS(block, row, col);
+        }
+
+        // Mix a single column
+        mix_single_column(column);
+
+        // Write the mixed column back into the block
+        for (int row = 0; row < 4; ++row) {
+            BLOCK_ACCESS(block, row, col) = column[row];
+        }
+    }
+}
 /*
  * Operations used when decrypting a block
  */
@@ -109,38 +125,77 @@ void invert_sub_bytes(unsigned char *block) {
   }
 }
 
-void invert_shift_rows(unsigned char *block) {
+void inv_shift_rows(unsigned char *block) {
     unsigned char temp;
 
-    //Row 2 - 1 to Right
-    temp = block[13];
-    block[13] = block[9];
-    block[9] = block[5];
-    block[5] = block[1];
-    block[1] = temp;
+    // Row 1: Shift 1 to the right
+    temp = BLOCK_ACCESS(block, 3, 1);
+    BLOCK_ACCESS(block, 3, 1) = BLOCK_ACCESS(block, 2, 1);
+    BLOCK_ACCESS(block, 2, 1) = BLOCK_ACCESS(block, 1, 1);
+    BLOCK_ACCESS(block, 1, 1) = BLOCK_ACCESS(block, 0, 1);
+    BLOCK_ACCESS(block, 0, 1) = temp;
 
-    //Row 3 - 2 to the right
-    temp = block[2];  
-    block[2] = block[10];
-    block[10] = temp;
-    temp = block[6];  
-    block[6] = block[14];
-    block[14] = temp;
+    // Row 2: Shift 2 to the right
+    temp = BLOCK_ACCESS(block, 0, 2);
+    BLOCK_ACCESS(block, 0, 2) = BLOCK_ACCESS(block, 2, 2);
+    BLOCK_ACCESS(block, 2, 2) = temp;
+    temp = BLOCK_ACCESS(block, 1, 2);
+    BLOCK_ACCESS(block, 1, 2) = BLOCK_ACCESS(block, 3, 2);
+    BLOCK_ACCESS(block, 3, 2) = temp;
 
-    // Row 4 - 3 to the right (or left by 1)
-    temp = block[3];
-    block[3] = block[7];
-    block[7] = block[11];
-    block[11] = block[15];
-    block[15] = temp;
+    // Row 3: Shift 3 to the right
+    temp = BLOCK_ACCESS(block, 0, 3);
+    BLOCK_ACCESS(block, 0, 3) = BLOCK_ACCESS(block, 1, 3);
+    BLOCK_ACCESS(block, 1, 3) = BLOCK_ACCESS(block, 2, 3);
+    BLOCK_ACCESS(block, 2, 3) = BLOCK_ACCESS(block, 3, 3);
+    BLOCK_ACCESS(block, 3, 3) = temp;
+}
+
+void inv_mix_columns(unsigned char *block) {
+    // Your implementation here, adjusting variable types as necessary
+    // For example, temporary variables inside your function would also use unsigned char
+    unsigned char a, b, c, d, t, u;
+    // Assume you've defined XTIME or any other necessary operations accordingly
+    
+    for (int i = 0; i < 4; ++i) {
+        a = block[i*4];
+        b = block[i*4 + 1];
+        c = block[i*4 + 2];
+        d = block[i*4 + 3];
+
+        // Apply inverse mix columns transformation
+        // This is just an illustrative example; the actual computation would depend on your XTIME and polynomial calculations
+    }
+    // Remember, the actual inverse mix columns operation involves specific polynomial mathematics
+    // Ensure you're using the correct constants and operations as per the AES specification
 }
 
 
 
+// void inv_mix_columns(unsigned char *block) {
+//     // Temporary variables for holding intermediate values during the transformation.
+//     unsigned char temp_xtime_u, temp_xtime_v;
 
-void invert_mix_columns(unsigned char *block) {
-  // TODO: Implement me!
-}
+//     // Iterating over each column of the AES state matrix.
+//     for (int i = 0; i < 4; ++i) {
+//         // Calculating intermediate values by applying 'xtime' twice on the XOR of specific elements.
+//         // These operations follow the inverse MixColumns transformation requirements.
+//         temp_xtime_u = XTIME(XTIME(block[i*4] ^ block[i*4+2]));
+//         temp_xtime_v = XTIME(XTIME(block[i*4+1] ^ block[i*4+3]));
+
+//         // Applying the transformation to the first and third bytes of the current column.
+//         block[i*4] ^= temp_xtime_u;
+//         block[i*4+2] ^= temp_xtime_u;
+
+//         // Applying the transformation to the second and fourth bytes of the current column.
+//         block[i*4+1] ^= temp_xtime_v;
+//         block[i*4+3] ^= temp_xtime_v;
+//     }
+
+//     // After the initial transformation, apply the regular MixColumns operation.
+//     // This is crucial for completing the inverse MixColumns step in AES decryption.
+//     mix_columns(block);
+// }
 
 /*
  * This operation is shared between encryption and decryption
