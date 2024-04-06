@@ -113,7 +113,7 @@ void invert_shift_rows(unsigned char *block) {
     unsigned char temp;
 
     //Row 2 - 1 to Right
-    temp = block[13];  // Storing the last byte of the row
+    temp = block[13];
     block[13] = block[9];
     block[9] = block[5];
     block[5] = block[1];
@@ -128,7 +128,7 @@ void invert_shift_rows(unsigned char *block) {
     block[14] = temp;
 
     // Row 4 - 3 to the right (or left by 1)
-    temp = block[3];  // Starting with the first byte of the row to move it by one to the right
+    temp = block[3];
     block[3] = block[7];
     block[7] = block[11];
     block[11] = block[15];
