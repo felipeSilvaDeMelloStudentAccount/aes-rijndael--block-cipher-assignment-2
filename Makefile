@@ -2,7 +2,7 @@
 CC ?= cc
 
 # declare all as a phony target
-.PHONY: all
+.PHONY: all test clean
 # create main executable and shared library					
 all: main rijndael.so
 
@@ -17,6 +17,10 @@ rijndael.o: rijndael.c rijndael.h
 rijndael.so: rijndael.o
 # create shared library
 	$(CC) -o rijndael.so -shared rijndael.o
+
+# call test target
+	$(MAKE) test
+
 
 test:
 # Run Python unit tests for the C code
