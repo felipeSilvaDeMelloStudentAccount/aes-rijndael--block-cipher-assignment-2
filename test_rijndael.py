@@ -6,7 +6,7 @@ class TestSubBytes(unittest.TestCase):
     Tests sub bytes
     """
     def setUp(self):
-        self.rijndael = ctypes.CDLL("/home/fsdm/repos/aes-rijndael--block-cipher-assignment-2/rijndael.so")
+        self.rijndael = ctypes.CDLL("./rijndael.so")
         self.test_input = (ctypes.c_ubyte * 16)(*range(16))
         # Expected value for a valid scenerio
         self.test_expected_success_value = (ctypes.c_ubyte * 16)(
@@ -56,3 +56,8 @@ def run():
 
 if __name__ == '__main__':
     unittest.main()
+
+
+    # Before runing this test make sure you have compiled the shared object file
+    # gcc -o rijndael.o rijndael.c
+    # gcc -fPIC -shared -o rijndael.so rijndael.c
