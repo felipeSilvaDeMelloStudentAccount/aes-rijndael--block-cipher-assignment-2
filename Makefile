@@ -1,20 +1,32 @@
-CC ?= cc										# set default compiler to cc
+# set default compiler to cc
+CC ?= cc
 
-.PHONY: all										# declare all as a phony target
-all: main rijndael.so							# create main executable and shared library
+# declare all as a phony target
+.PHONY: all
+# create main executable and shared library					
+all: main rijndael.so
 
 main: rijndael.o main.c
-	$(CC) -o main main.c rijndael.o 			# create main executable
+# create main executable
+	$(CC) -o main main.c rijndael.o
 
 rijndael.o: rijndael.c rijndael.h
-	$(CC) -o rijndael.o -fPIC -c rijndael.c   	# create object file
+# create object file
+	$(CC) -o rijndael.o -fPIC -c rijndael.c
 
 rijndael.so: rijndael.o
-	$(CC) -o rijndael.so -shared rijndael.o   	# create shared library
+# create shared library
+	$(CC) -o rijndael.so -shared rijndael.o
 
 test:
-    python3 test_rijndael.py                    # Run Python unit tests for the C code
+# Run Python unit tests for the C code
+	python3 test_rijndael.py
 
 clean:
-	rm -f *.o *.so    							# remove all object files and shared libraries
-	rm -f main	      							# remove main executable
+# remove all object files and shared libraries
+	rm -f *.o *.so
+# remove main executable
+	rm -f main
+
+# to run the program, type 'make' in the terminal and it will create the main executable and shared library
+# to run the tests, type 'make test' in the terminal and it will run the Python unit tests for the C code
