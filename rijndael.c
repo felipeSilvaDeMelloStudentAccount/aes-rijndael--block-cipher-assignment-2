@@ -63,18 +63,16 @@ void sub_bytes(unsigned char *block) {
 void shift_rows(unsigned char *block) {
     unsigned char temp;
 
-    // Row 1 doesn't shift (i.e., row 0 in 0-indexed)
+    // Row 0 doesn't shift (i.e., row 0 in 0-indexed)
 
-    // Row 2 
-    //shifts 1 to the left
+    // Row 1 - Shifts 1 to the left
     temp = block[1];
     block[1] = block[5];
     block[5] = block[9];
     block[9] = block[13];
     block[13] = temp;
 
-    // Row 3 
-    // shifts 2 to the left
+    // Row 2 - Shifts 2 to the left
     temp = block[2];
     block[2] = block[10];
     block[10] = temp;
@@ -82,8 +80,7 @@ void shift_rows(unsigned char *block) {
     block[6] = block[14];
     block[14] = temp;
 
-    // Row 4 
-    // shifts 3 to the left (or one to the right)
+    // Row 3 - Shifts 3 to the left (or one to the right)
     temp = block[15];
     block[15] = block[11];
     block[11] = block[7];
@@ -113,8 +110,33 @@ void invert_sub_bytes(unsigned char *block) {
 }
 
 void invert_shift_rows(unsigned char *block) {
-  // TODO: Implement me!
+    unsigned char temp;
+
+    //Row 2 - 1 to Right
+    temp = block[13];  // Storing the last byte of the row
+    block[13] = block[9];
+    block[9] = block[5];
+    block[5] = block[1];
+    block[1] = temp;
+
+    //Row 3 - 2 to the right
+    temp = block[2];  
+    block[2] = block[10];
+    block[10] = temp;
+    temp = block[6];  
+    block[6] = block[14];
+    block[14] = temp;
+
+    // Row 4 - 3 to the right (or left by 1)
+    temp = block[3];  // Starting with the first byte of the row to move it by one to the right
+    block[3] = block[7];
+    block[7] = block[11];
+    block[11] = block[15];
+    block[15] = temp;
 }
+
+
+
 
 void invert_mix_columns(unsigned char *block) {
   // TODO: Implement me!

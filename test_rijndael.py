@@ -122,8 +122,28 @@ class TestInvertSubBytes(unittest.TestCase):
         # Check if it correctly inverts back to 0xFF
         self.assertEqual(test_input[0], 0xFF, "InvertSubBytes transformation failed.")
 
+class TestInvertShiftRows(unittest.TestCase):
+    def setUp(self):
+        self.rijndael = ctypes.CDLL("./rijndael.so")
+        # Initialize with a state that would result AFTER applying shift_rows
+        # This is the state we expect AFTER shift_rows and BEFORE invert_shift_rows
+        self.test_input = (ctypes.c_ubyte * 16)(
+            0x00, 0x05, 0x0A, 0x0F,  # Row 0 remains unchanged
+            0x04, 0x09, 0x0E, 0x03,  # Row 1 shifted right by 1 (undo left shift of 1)
+            0x08, 0x0D, 0x02, 0x07,  # Row 2 shifted right by 2 (undo left shift of 2)
+            0x0C, 0x01, 0x06, 0x0B)  # Row 3 shifted right by 3 (undo left shift of 3)
 
-
+    def test_invert_shift_rows_correctness(self):
+        # Expected output is the original state before shift_rows was applied
+        expected_output = (ctypes.c_ubyte * 16)(*range(16))
+        
+        # Apply invert_shift_rows to the test input
+        self.rijndael.invert_shift_rows(self.test_input)
+        
+        # Verify that each byte is correctly reverted to its original position
+        for i in range(16):
+            self.assertEqual(self.test_input[i], expected_output[i],
+                             f"Byte {i} did not match expected value after invert_shift_rows.")
 
 def run():
     unittest.main()

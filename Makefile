@@ -24,7 +24,11 @@ rijndael.so: rijndael.o
 
 test:
 # Run Python unit tests for the C code
+	echo "Running Python Unit tests for the rijndael.so shared library..."
 	python3 test_rijndael.py
+
+#	echo "Running Python unit tests from aes module..."
+#	python3 aes/tests.py
 
 clean:
 # remove all object files and shared libraries
