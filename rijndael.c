@@ -69,15 +69,15 @@ void shift_rows(unsigned char *block) {
     block[3] = temp;
 }
 
-void mix_columns(unsigned char *state) {
+void mix_columns(unsigned char *block) {
       unsigned char tmp, tm, t;
     for (int i = 0; i < 4; ++i) {
-        t = state[i*4];
-        tmp = state[i*4] ^ state[i*4+1] ^ state[i*4+2] ^ state[i*4+3] ;
-        tm = state[i*4] ^ state[i*4+1]; tm = XTIME(tm);  state[i*4] ^= tm ^ tmp;
-        tm = state[i*4+1] ^ state[i*4+2]; tm = XTIME(tm);  state[i*4+1] ^= tm ^ tmp;
-        tm = state[i*4+2] ^ state[i*4+3]; tm = XTIME(tm);  state[i*4+2] ^= tm ^ tmp;
-        tm = state[i*4+3] ^ t; tm = XTIME(tm);  state[i*4+3] ^= tm ^ tmp;
+        t = block[i*4];
+        tmp = block[i*4] ^ block[i*4+1] ^ block[i*4+2] ^ block[i*4+3] ;
+        tm = block[i*4] ^ block[i*4+1]; tm = XTIME(tm);  block[i*4] ^= tm ^ tmp;
+        tm = block[i*4+1] ^ block[i*4+2]; tm = XTIME(tm);  block[i*4+1] ^= tm ^ tmp;
+        tm = block[i*4+2] ^ block[i*4+3]; tm = XTIME(tm);  block[i*4+2] ^= tm ^ tmp;
+        tm = block[i*4+3] ^ t; tm = XTIME(tm);  block[i*4+3] ^= tm ^ tmp;
     }
 }
 
