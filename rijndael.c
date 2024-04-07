@@ -31,7 +31,7 @@ static const unsigned char S_BOX[256] = {
     0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf, // E
     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16  // F
 };
-  // Inverse S-Box definition
+//   Inverse S-Box definition
 static const unsigned char INV_S_BOX[256] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
     0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
@@ -55,6 +55,7 @@ static const unsigned char INV_S_BOX[256] = {
  * Operations used when encrypting a block
  */
 void sub_bytes(unsigned char *block) {
+    // Iterate over each byte in the block and replace it with the corresponding byte from the S-box table
     for(int i=0; i<BLOCK_SIZE; i++){
         block[i] = S_BOX[block[i]];
     }
@@ -125,77 +126,31 @@ void invert_sub_bytes(unsigned char *block) {
   }
 }
 
-void inv_shift_rows(unsigned char *block) {
-    unsigned char temp;
 
-    // Row 1: Shift 1 to the right
-    temp = BLOCK_ACCESS(block, 3, 1);
-    BLOCK_ACCESS(block, 3, 1) = BLOCK_ACCESS(block, 2, 1);
-    BLOCK_ACCESS(block, 2, 1) = BLOCK_ACCESS(block, 1, 1);
-    BLOCK_ACCESS(block, 1, 1) = BLOCK_ACCESS(block, 0, 1);
-    BLOCK_ACCESS(block, 0, 1) = temp;
+ void inv_mix_columns(unsigned char *block) {
+     // Temporary variables for holding intermediate values during the transformation.
+     unsigned char temp_xtime_u, temp_xtime_v;
 
-    // Row 2: Shift 2 to the right
-    temp = BLOCK_ACCESS(block, 0, 2);
-    BLOCK_ACCESS(block, 0, 2) = BLOCK_ACCESS(block, 2, 2);
-    BLOCK_ACCESS(block, 2, 2) = temp;
-    temp = BLOCK_ACCESS(block, 1, 2);
-    BLOCK_ACCESS(block, 1, 2) = BLOCK_ACCESS(block, 3, 2);
-    BLOCK_ACCESS(block, 3, 2) = temp;
+     // Iterating over each column of the AES state matrix.
+     for (int i = 0; i < 4; ++i) {
+         // Calculating intermediate values by applying 'xtime' twice on the XOR of specific elements.
+         // These operations follow the inverse MixColumns transformation requirements.
+         temp_xtime_u = XTIME(XTIME(block[i*4] ^ block[i*4+2]));
+         temp_xtime_v = XTIME(XTIME(block[i*4+1] ^ block[i*4+3]));
 
-    // Row 3: Shift 3 to the right
-    temp = BLOCK_ACCESS(block, 0, 3);
-    BLOCK_ACCESS(block, 0, 3) = BLOCK_ACCESS(block, 1, 3);
-    BLOCK_ACCESS(block, 1, 3) = BLOCK_ACCESS(block, 2, 3);
-    BLOCK_ACCESS(block, 2, 3) = BLOCK_ACCESS(block, 3, 3);
-    BLOCK_ACCESS(block, 3, 3) = temp;
-}
+         // Applying the transformation to the first and third bytes of the current column.
+         block[i*4] ^= temp_xtime_u;
+         block[i*4+2] ^= temp_xtime_u;
 
-void inv_mix_columns(unsigned char *block) {
-    // Your implementation here, adjusting variable types as necessary
-    // For example, temporary variables inside your function would also use unsigned char
-    unsigned char a, b, c, d, t, u;
-    // Assume you've defined XTIME or any other necessary operations accordingly
-    
-    for (int i = 0; i < 4; ++i) {
-        a = block[i*4];
-        b = block[i*4 + 1];
-        c = block[i*4 + 2];
-        d = block[i*4 + 3];
+         // Applying the transformation to the second and fourth bytes of the current column.
+         block[i*4+1] ^= temp_xtime_v;
+         block[i*4+3] ^= temp_xtime_v;
+     }
 
-        // Apply inverse mix columns transformation
-        // This is just an illustrative example; the actual computation would depend on your XTIME and polynomial calculations
-    }
-    // Remember, the actual inverse mix columns operation involves specific polynomial mathematics
-    // Ensure you're using the correct constants and operations as per the AES specification
-}
-
-
-
-// void inv_mix_columns(unsigned char *block) {
-//     // Temporary variables for holding intermediate values during the transformation.
-//     unsigned char temp_xtime_u, temp_xtime_v;
-
-//     // Iterating over each column of the AES state matrix.
-//     for (int i = 0; i < 4; ++i) {
-//         // Calculating intermediate values by applying 'xtime' twice on the XOR of specific elements.
-//         // These operations follow the inverse MixColumns transformation requirements.
-//         temp_xtime_u = XTIME(XTIME(block[i*4] ^ block[i*4+2]));
-//         temp_xtime_v = XTIME(XTIME(block[i*4+1] ^ block[i*4+3]));
-
-//         // Applying the transformation to the first and third bytes of the current column.
-//         block[i*4] ^= temp_xtime_u;
-//         block[i*4+2] ^= temp_xtime_u;
-
-//         // Applying the transformation to the second and fourth bytes of the current column.
-//         block[i*4+1] ^= temp_xtime_v;
-//         block[i*4+3] ^= temp_xtime_v;
-//     }
-
-//     // After the initial transformation, apply the regular MixColumns operation.
-//     // This is crucial for completing the inverse MixColumns step in AES decryption.
-//     mix_columns(block);
-// }
+     // After the initial transformation, apply the regular MixColumns operation.
+     // This is crucial for completing the inverse MixColumns step in AES decryption.
+     mix_columns(block);
+ }
 
 /*
  * This operation is shared between encryption and decryption

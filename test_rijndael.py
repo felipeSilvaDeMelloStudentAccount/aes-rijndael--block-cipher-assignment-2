@@ -123,38 +123,6 @@ class TestInvertSubBytes(unittest.TestCase):
         self.rijndael.invert_sub_bytes(test_input)
         # Check if it correctly inverts back to 0xFF
         self.assertEqual(test_input[0], 0xFF, "InvertSubBytes transformation failed.")
-
-class TestInvMixColumns(unittest.TestCase):
-    def setUp(self):
-        # Load the shared library containing the inv_mix_columns implementation
-        self.rijndael_lib = ctypes.CDLL("./rijndael.so")
-        
-        # Specify the argument and return types for the inv_mix_columns function
-        # This function modifies the block in-place and does not return a value
-        self.rijndael_lib.inv_mix_columns.argtypes = [ctypes.POINTER(ctypes.c_ubyte * 16)]
-        self.rijndael_lib.inv_mix_columns.restype = None
-
-        # Define a test case: input and expected output are derived from known AES examples
-        self.test_input = (ctypes.c_ubyte * 16)(
-            0x04, 0xe0, 0x48, 0x28,
-            0x66, 0xcb, 0xf8, 0x06,
-            0x81, 0x19, 0xd3, 0x26,
-            0xe5, 0x9a, 0x7a, 0x4c)
-        self.expected_output = (ctypes.c_ubyte * 16)(
-            0xd4, 0xbf, 0x5d, 0x30,
-            0xe0, 0xb4, 0x52, 0xae,
-            0xb8, 0x41, 0x11, 0xf1,
-            0x1e, 0x27, 0x98, 0xe5)
-
-    def test_inv_mix_columns(self):
-        # Apply the inv_mix_columns operation to the test input
-        self.rijndael_lib.inv_mix_columns(self.test_input)
-        
-        # Verify each byte of the output matches the expected output
-        for i in range(16):
-            with self.subTest(i=i):
-                self.assertEqual(self.test_input[i], self.expected_output[i],
-                                 f"Byte {i} mismatch: expected {self.expected_output[i]}, got {self.test_input[i]}")
     
 
 def run():

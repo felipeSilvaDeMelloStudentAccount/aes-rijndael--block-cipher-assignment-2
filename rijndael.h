@@ -14,6 +14,7 @@
 #define BLOCK_SIZE 16
 
 
+
 //Define XTIME to perform multiplication by 2 in the GF(2^8) field.
 //If the leftmost bit of the input is 1, the result of the shift is XORed with 0x1b (the irreducible polynomial).
 #define XTIME(x) (((x) << 1) ^ ((((x) >> 7) & 1) * 0x1b))
