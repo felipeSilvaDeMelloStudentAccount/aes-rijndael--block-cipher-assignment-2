@@ -1,10 +1,12 @@
 import unittest
 import ctypes
 
+
 class TestSubBytes(unittest.TestCase):
     """
     Tests sub bytes
     """
+
     def setUp(self):
         self.rijndael = ctypes.CDLL("./rijndael.so")
         self.test_input = (ctypes.c_ubyte * 16)(*range(16))
@@ -22,7 +24,6 @@ class TestSubBytes(unittest.TestCase):
         self.rijndael.sub_bytes(self.test_input)
         for i in range(16):
             self.assertEqual(self.test_input[i], self.test_expected_success_value[i], "SubBytes transformation failed.")
-
 
     def test_sub_bytes_failure(self):
         self.rijndael.sub_bytes(self.test_input)
@@ -60,7 +61,8 @@ class TestShiftRows(unittest.TestCase):
     def test_shift_rows_correctness(self):
         self.rijndael.shift_rows(self.test_input)
         for i in range(16):
-            self.assertEqual(self.test_input[i], self.expected_after_shift[i], f"Byte {i} did not match expected value.")
+            self.assertEqual(self.test_input[i], self.expected_after_shift[i],
+                             f"Byte {i} did not match expected value.")
 
     def test_shift_rows_first_row_unchanged(self):
         # Identifying the first row's elements before the shift
@@ -69,6 +71,7 @@ class TestShiftRows(unittest.TestCase):
         # Identifying the first row's elements after the shift
         shifted_first_row = [self.test_input[i] for i in range(0, 16, 4)]
         self.assertEqual(original_first_row, shifted_first_row, "First row was altered.")
+
 
 class TestInvertSubBytes(unittest.TestCase):
     def setUp(self):
@@ -98,13 +101,13 @@ class TestInvertSubBytes(unittest.TestCase):
         for i in range(16):
             self.assertEqual(self.test_input[i], expected_sequence[i], "InvertSubBytes transformation failed.")
 
-
     def test_invert_sub_bytes_failure(self):
         """Test invert_sub_bytes with modified expected output."""
         self.rijndael.invert_sub_bytes(self.test_input)
         with self.assertRaises(AssertionError):
             for i in range(16):
-                self.assertEqual(self.test_input[i], self.expected_failure_output[i], "InvertSubBytes transformation failed.")
+                self.assertEqual(self.test_input[i], self.expected_failure_output[i],
+                                 "InvertSubBytes transformation failed.")
 
     def test_invert_sub_bytes_first_index(self):
         """Test invert_sub_bytes inverts the first index of INV_S_BOX."""
@@ -121,6 +124,7 @@ class TestInvertSubBytes(unittest.TestCase):
         self.rijndael.invert_sub_bytes(test_input)
         # Check if it correctly inverts back to 0xFF
         self.assertEqual(test_input[0], 0xFF, "InvertSubBytes transformation failed.")
+
 
 class TestInvertShiftRows(unittest.TestCase):
     def setUp(self):
@@ -145,12 +149,50 @@ class TestInvertShiftRows(unittest.TestCase):
             self.assertEqual(self.test_input[i], expected_output[i],
                              f"Byte {i} did not match expected value after invert_shift_rows.")
 
-def run():
-    unittest.main()
+
+class TestXTIME(unittest.TestCase):
+    # Set up the test case
+    def setUp(self):
+        self.rijndael = ctypes.CDLL("./rijndael.so")
+        # Assuming xtime_wrapper is the name of the function in the C library
+        self.rijndael.xtime_wrapper.argtypes = [ctypes.c_ubyte]
+        self.rijndael.xtime_wrapper.restype = ctypes.c_ubyte
+
+        self.test_cases = [
+            (0x57, 0xAE),  # Typical case without needing to XOR with 0x1b
+            (0x80, 0x1B),  # Case where XOR with 0x1b is needed
+        ]
+
+    def test_XTIME(self):
+        for input_val, expected_output in self.test_cases:
+            actual_output = self.rijndael.xtime_wrapper(ctypes.c_ubyte(input_val))
+            self.assertEqual(actual_output, expected_output,
+                             f"XTIME({hex(input_val)}) = {hex(actual_output)}, expected {hex(expected_output)}")
+
+
+class TestMULTIPLY(unittest.TestCase):
+    def setUp(self):
+        self.rijndael = ctypes.CDLL("./rijndael.so")
+        self.rijndael.multiply_wrapper.argtypes = [ctypes.c_ubyte, ctypes.c_ubyte]
+        self.rijndael.multiply_wrapper.restype = ctypes.c_ubyte
+
+    def test_multiply(self):
+        # Example test: multiplying by 0x02 should be the same as applying XTIME
+        self.assertEqual(self.rijndael.multiply_wrapper(0x57, 0x02), self.rijndael.xtime_wrapper(0x57),
+                         "MULTIPLY by 0x02 failed")
+        # Add more tests as necessary
+
 
 if __name__ == '__main__':
     unittest.main()
 
+
+def run():
+    unittest.main()
+
+
+if __name__ == '__main__':
+    unittest.main()
 
     # Before runing this test make sure you have compiled the shared object file
     # gcc -o rijndael.o rijndael.c
