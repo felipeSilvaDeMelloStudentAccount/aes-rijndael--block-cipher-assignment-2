@@ -50,16 +50,9 @@ static const unsigned char INV_S_BOX[256] = {
         0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
 };
 
-
-
 // Wrapper function for XTIME to be callable from Python ctypes
 unsigned char xtime_wrapper(unsigned char x) {
     return XTIME(x);
-}
-
-// Wrapper function for MULTIPLY
-unsigned char multiply_wrapper(unsigned char x, unsigned char y) {
-    return MULTIPLY(x, y);
 }
 
 
@@ -130,6 +123,7 @@ void mix_columns(unsigned char *block) {
     }
 }
 
+
 /*
  * Operations used when decrypting a block
  */
@@ -174,30 +168,30 @@ void invert_shift_rows(unsigned char *block) {
  * @param block A pointer to the 16-byte block to be transformed.
  */
 void inv_mix_columns(unsigned char *block) {
-    // Temporary variables to hold the state's column bytes
-    unsigned char colByte0, colByte1, colByte2, colByte3;
+    // Iterate over each column
+    for (int col = 0; col < 4; col++) {
+        // Calculate intermediate values for the transformation
+        // double_xor_first_third is the result of doubling the XOR of the first and third bytes in the column
+        unsigned char double_xor_first_third =
+                XTIME(XTIME(BLOCK_ACCESS(block, 0, col) ^ BLOCK_ACCESS(block, 2, col)));
+        // double_xor_second_fourth is the result of doubling the XOR of the second and fourth bytes in the column
+        unsigned char double_xor_second_fourth =
+                XTIME(XTIME(BLOCK_ACCESS(block, 1, col) ^ BLOCK_ACCESS(block, 3, col)));
 
-    // Iterate over each of the 4 columns
-    for (int col = 0; col < 4; ++col) {
-        // Extract the bytes of the current column from the state
-        colByte0 = block[col * 4];
-        colByte1 = block[col * 4 + 1];
-        colByte2 = block[col * 4 + 2];
-        colByte3 = block[col * 4 + 3];
-
-        // Apply the inverse MixColumns transformation using the specified
-        // coefficients from the AES standard. Each byte of the column is replaced
-        // with a new value formed from a linear combination of all four bytes in
-        // the column, with coefficients in GF(2^8).
-        block[col * 4] = MULTIPLY(colByte0, 0x0e) ^ MULTIPLY(colByte1, 0x0b) ^
-                         MULTIPLY(colByte2, 0x0d) ^ MULTIPLY(colByte3, 0x09);
-        block[col * 4 + 1] = MULTIPLY(colByte0, 0x09) ^ MULTIPLY(colByte1, 0x0e) ^
-                             MULTIPLY(colByte2, 0x0b) ^ MULTIPLY(colByte3, 0x0d);
-        block[col * 4 + 2] = MULTIPLY(colByte0, 0x0d) ^ MULTIPLY(colByte1, 0x09) ^
-                             MULTIPLY(colByte2, 0x0e) ^ MULTIPLY(colByte3, 0x0b);
-        block[col * 4 + 3] = MULTIPLY(colByte0, 0x0b) ^ MULTIPLY(colByte1, 0x0d) ^
-                             MULTIPLY(colByte2, 0x09) ^ MULTIPLY(colByte3, 0x0e);
+        // Apply the transformation to each byte in the column
+        // XOR the first byte with the calculated value
+        BLOCK_ACCESS(block, 0, col) ^= double_xor_first_third;
+        // XOR the second byte with the calculated value
+        BLOCK_ACCESS(block, 1, col) ^= double_xor_second_fourth;
+        // XOR the third byte with the same value as the first byte
+        BLOCK_ACCESS(block, 2, col) ^= double_xor_first_third;
+        // XOR the fourth byte with the same value as the second byte
+        BLOCK_ACCESS(block, 3, col) ^= double_xor_second_fourth;
     }
+
+    // Call mix_columns as part of the inversion process
+    // This is necessary to correctly apply the inverse mix columns transformation
+    mix_columns(block);
 }
 
 
