@@ -4,6 +4,7 @@ import unittest
 
 class RijndaelTestBase(unittest.TestCase):
     def setUp(self):
+        self.BLOCK_SIZE = 16
         self.rijndael = ctypes.CDLL("./rijndael.so")
         self.test_input = (ctypes.c_ubyte * 16)(*range(16))
 
@@ -206,6 +207,26 @@ class TestInvMixColumns(RijndaelTestBase):
         for i in range(16):
             self.assertEqual(test_input[i], expected_output[i],
                              f"Byte {i} did not match expected value after inv_mix_columns.")
+
+
+class TestAddRoundKey(RijndaelTestBase):
+    def test_add_round_key(self):
+        # Test block and round key
+        test_block = (ctypes.c_ubyte * self.BLOCK_SIZE)(*range(self.BLOCK_SIZE))
+        # Round key is the inverse of the test block
+        test_round_key = (ctypes.c_ubyte * self.BLOCK_SIZE)(*(15 - i for i in range(self.BLOCK_SIZE)))
+
+        # Expected output after XORing test_block with test_round_key
+        expected_output = (ctypes.c_ubyte * self.BLOCK_SIZE)(
+            *(i ^ (15 - i) for i in range(self.BLOCK_SIZE)))
+
+        # Apply the add_round_key function
+        self.rijndael.add_round_key(test_block, test_round_key)
+
+        # Assert that each byte in the modified block matches the expected output
+        for i in range(self.BLOCK_SIZE):
+            self.assertEqual(test_block[i], expected_output[i],
+                             f"Byte {i} mismatch: expected {expected_output[i]}, got {test_block[i]}")
 
 
 def run():
