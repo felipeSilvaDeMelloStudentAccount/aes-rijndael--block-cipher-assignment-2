@@ -12,6 +12,10 @@
 #define BLOCK_ACCESS(block, row, col) (block[(row * 4) + col])
 // Define the block size and the number of rounds
 #define BLOCK_SIZE 16
+// 11 round keys of 128 bits each
+#define EXPANDED_KEY_LENGTH 176
+#define WORD_LENGTH 4
+
 
 #define XTIME(x) (((x) << 1) ^ (((x) & 0x80) ? 0x1b : 0x00))
 
