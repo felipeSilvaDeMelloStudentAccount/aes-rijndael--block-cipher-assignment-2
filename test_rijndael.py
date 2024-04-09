@@ -8,6 +8,10 @@ class RijndaelTestBase(unittest.TestCase):
         self.rijndael = ctypes.CDLL("./rijndael.so")
         self.test_input = (ctypes.c_ubyte * self.BLOCK_SIZE)(*range(self.BLOCK_SIZE))
 
+        # Define the prototype of the expand_key function
+        self.rijndael.expand_key.argtypes = [ctypes.POINTER(ctypes.c_ubyte * self.BLOCK_SIZE)]
+        self.rijndael.expand_key.restype = ctypes.POINTER(ctypes.c_ubyte * 176)
+
     def assertEqualByteArray(self, actual, expected, message="Byte array mismatch"):
         for i, (actual_byte, expected_byte) in enumerate(zip(actual, expected)):
             self.assertEqual(actual_byte, expected_byte,
@@ -230,6 +234,19 @@ class TestAddRoundKey(RijndaelTestBase):
         for i in range(self.BLOCK_SIZE):
             self.assertEqual(test_block[i], expected_output[i],
                              f"Byte {i} mismatch: expected {expected_output[i]}, got {test_block[i]}")
+
+
+class TestExpandKey(RijndaelTestBase):
+    def test_expand_key_correctness(self):
+        # Sample 128-bit AES key (16 bytes)
+        self.sample_key = (ctypes.c_ubyte * 16)(0x2b, 0x7e, 0x15, 0x16,
+                                                0x28, 0xae, 0xd2, 0xa6,
+                                                0xab, 0xf7, 0x15, 0x88,
+                                                0x09, 0xcf, 0x4f, 0x3c)
+        expanded_key = self.rijndael.expand_key(ctypes.byref(self.sample_key))
+        # Verify that the expanded key starts with the original key
+        for i in range(self.BLOCK_SIZE):
+            self.assertEqual(self.sample_key[i], expanded_key.contents[i], f"Mismatch at byte {i} of expanded key.")
 
 
 def run():
