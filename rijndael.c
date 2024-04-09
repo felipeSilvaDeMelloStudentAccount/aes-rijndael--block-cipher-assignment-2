@@ -60,51 +60,62 @@ unsigned char xtime_wrapper(unsigned char x) {
  * Operations used when encrypting a block
  */
 void sub_bytes(unsigned char *block) {
-    // Iterate over each byte in the block and replace it with the corresponding byte from the S-box table
-    for (int i = 0; i < BLOCK_SIZE; i++) {
-        block[i] = S_BOX[block[i]];
+    // Iterate over each byte in the block
+    for (size_t index = 0; index < BLOCK_SIZE; ++index) {
+        // Replace each byte with its S-Box equivalent
+        block[index] = S_BOX[block[index]];
     }
 }
 
-
 void shift_rows(unsigned char *block) {
-    unsigned char temp;
+    unsigned char tempByteForShift;
 
     // Row 0 doesn't shift (i.e., row 0 in 0-indexed)
 
     // Row 1 - Shifts 1 to the left
-    temp = block[1];
+    tempByteForShift = block[1];
     block[1] = block[5];
     block[5] = block[9];
     block[9] = block[13];
-    block[13] = temp;
+    block[13] = tempByteForShift;
 
     // Row 2 - Shifts 2 to the left
-    temp = block[2];
+    tempByteForShift = block[2];
     block[2] = block[10];
-    block[10] = temp;
-    temp = block[6];
+    block[10] = tempByteForShift;
+    tempByteForShift = block[6];
     block[6] = block[14];
-    block[14] = temp;
+    block[14] = tempByteForShift;
 
     // Row 3 - Shifts 3 to the left (or one to the right)
-    temp = block[15];
+    tempByteForShift = block[15];
     block[15] = block[11];
     block[11] = block[7];
     block[7] = block[3];
-    block[3] = temp;
+    block[3] = tempByteForShift;
 }
 
-void mix_single_column(unsigned char *a) {
-    unsigned char t = a[0] ^ a[1] ^ a[2] ^ a[3];
-    unsigned char tempFirstElement = a[0];
 
-    a[0] ^= t ^ XTIME(a[0] ^ a[1]);
-    a[1] ^= t ^ XTIME(a[1] ^ a[2]);
-    a[2] ^= t ^ XTIME(a[2] ^ a[3]);
-    a[3] ^= t ^ XTIME(a[3] ^ tempFirstElement);
+/**
+ * Perform the MixColumns operation on a single column of the state block.
+ * @param column The column to be mixed.
+ */
+void mix_single_column(unsigned char *column) {
+    // Calculate the XOR of all bytes in the column
+    unsigned char columnXorResult = column[0] ^ column[1] ^ column[2] ^ column[3];
+    unsigned char originalFirstByte = column[0];
+
+    // Perform the mixing operation on each byte in the column
+    column[0] ^= columnXorResult ^ XTIME(column[0] ^ column[1]);
+    column[1] ^= columnXorResult ^ XTIME(column[1] ^ column[2]);
+    column[2] ^= columnXorResult ^ XTIME(column[2] ^ column[3]);
+    column[3] ^= columnXorResult ^ XTIME(column[3] ^ originalFirstByte);
 }
 
+/**
+ * Perform the MixColumns operation on the state block.
+ * @param block The block to be mixed.
+ */
 void mix_columns(unsigned char *block) {
     unsigned char column[4];
     for (int col = 0; col < 4; ++col) {
@@ -128,36 +139,40 @@ void mix_columns(unsigned char *block) {
  * Operations used when decrypting a block
  */
 void invert_sub_bytes(unsigned char *block) {
-    for (int i = 0; i < BLOCK_SIZE; i++) {
-        block[i] = INV_S_BOX[block[i]];
+    // Iterate over each byte in the block
+    for (size_t index = 0; index < BLOCK_SIZE; ++index) {
+        // Replace each byte with its corresponding value from the inverse S-Box
+        block[index] = INV_S_BOX[block[index]];
     }
 }
 
-void invert_shift_rows(unsigned char *block) {
-    unsigned char temp;
 
-    //Row 2 - 1 to Right
-    temp = block[13];
+void invert_shift_rows(unsigned char *block) {
+    unsigned char tempByteForShift;
+
+    // Invert shift for row 1 (shift right by 1)
+    tempByteForShift = block[13];
     block[13] = block[9];
     block[9] = block[5];
     block[5] = block[1];
-    block[1] = temp;
+    block[1] = tempByteForShift;
 
-    //Row 3 - 2 to the right
-    temp = block[2];
+    // Invert shift for row 2 (shift right by 2)
+    tempByteForShift = block[2];
     block[2] = block[10];
-    block[10] = temp;
-    temp = block[6];
+    block[10] = tempByteForShift;
+    tempByteForShift = block[6];
     block[6] = block[14];
-    block[14] = temp;
+    block[14] = tempByteForShift;
 
-    // Row 4 - 3 to the right (or left by 1)
-    temp = block[3];
+    // Invert shift for row 3 (shift right by 3, equivalent to shifting left by 1)
+    tempByteForShift = block[3];
     block[3] = block[7];
     block[7] = block[11];
     block[11] = block[15];
-    block[15] = temp;
+    block[15] = tempByteForShift;
 }
+
 
 /**
  * Performs the inverse MixColumns operation on a state block.
@@ -197,9 +212,19 @@ void inv_mix_columns(unsigned char *block) {
 
 /*
  * This operation is shared between encryption and decryption
+ *
+ * XORs the AES block with the round key.
+ * Both the block and the round_key are 128 bits,
+ * represented here as arrays of 16 bytes.
+ *
+ * @param block The current block of the AES encryption/decryption process.
+ * @param round_key The round key to be combined with the block.
  */
 void add_round_key(unsigned char *block, unsigned char *round_key) {
-    // TODO: Implement me!
+    for (size_t byteIndex = 0; byteIndex < BLOCK_SIZE; ++byteIndex) {
+        // XOR each byte of the state with the corresponding byte of the round key
+        block[byteIndex] ^= round_key[byteIndex];
+    }
 }
 
 /*
