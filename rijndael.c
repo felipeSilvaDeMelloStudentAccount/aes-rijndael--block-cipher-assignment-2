@@ -6,6 +6,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include "rijndael.h"
 
 
@@ -48,6 +49,11 @@ static const unsigned char INV_S_BOX[256] = {
         0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef,
         0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
         0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
+};
+
+// Define the round constants for key expansion
+static const unsigned char ROUND_CONSTANT[10] = {
+        0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36
 };
 
 // Wrapper function for XTIME to be callable from Python ctypes
@@ -227,14 +233,69 @@ void add_round_key(unsigned char *block, unsigned char *round_key) {
     }
 }
 
+// Define the block size and the number of rounds
+void applySBoxToWord(unsigned char *word) {
+    for (int byteIndex = 0; byteIndex < WORD_LENGTH; ++byteIndex) {
+        // Apply S-Box transformation to each byte of the word
+        word[byteIndex] = S_BOX[word[byteIndex]]; // Assuming S_BOX is defined elsewhere
+    }
+}
+
+// Rotate the bytes in a word one position to the left
+void rotateWordLeft(unsigned char *word) {
+    unsigned char firstByte = word[0]; // Store the first byte of the word
+    for (int byteIndex = 0; byteIndex < WORD_LENGTH - 1; ++byteIndex) {
+        // Shift each byte one position to the left
+        word[byteIndex] = word[byteIndex + 1];
+    }
+    word[WORD_LENGTH - 1] = firstByte; // Move the first byte to the end of the word
+}
+
 /*
  * This function should expand the round key. Given an input,
  * which is a single 128-bit key, it should return a 176-byte
  * vector, containing the 11 round keys one after the other
  */
 unsigned char *expand_key(unsigned char *cipher_key) {
-    // TODO: Implement me!
-    return 0;
+    // Allocate memory for the expanded key
+    unsigned char *expandedKey = malloc(EXPANDED_KEY_LENGTH);
+    if (!expandedKey) {
+        return NULL; // Memory allocation failed
+    }
+
+    int bytes_generated = 0;
+    unsigned char temp_word[WORD_LENGTH];
+    // Index to the round constant
+    unsigned char roundConIndex = 0;
+
+    // Copy the original cipher key to the beginning of the expanded key
+    memcpy(expandedKey, cipher_key, BLOCK_SIZE);
+    bytes_generated += BLOCK_SIZE;
+
+    // Generate the remaining round keys
+    while (bytes_generated < EXPANDED_KEY_LENGTH) {
+        // Copy the last generated word into temp_word
+        memcpy(temp_word, expandedKey + bytes_generated - WORD_LENGTH, WORD_LENGTH);
+
+        // Perform the key schedule core every 16 bytes
+        if (bytes_generated % BLOCK_SIZE == 0) {
+            // Perform the key schedule core (rot_word and applySBoxToWord)
+            rotateWordLeft(temp_word);
+            applySBoxToWord(temp_word);
+            // XOR the first byte of temp_word with the round constant
+            temp_word[0] ^= ROUND_CONSTANT[roundConIndex++];
+        }
+
+        // XOR the temp_word word with the word BLOCK_SIZE bytes before it
+        for (int i = 0; i < WORD_LENGTH; ++i) {
+            // XOR each byte of the temp_word word with the corresponding byte of the word BLOCK_SIZE bytes before it
+            expandedKey[bytes_generated] = expandedKey[bytes_generated - BLOCK_SIZE] ^ temp_word[i];
+            // Increment the number of bytes generated
+            bytes_generated++;
+        }
+    }
+    // Return the expanded key
+    return expandedKey;
 }
 
 /*
