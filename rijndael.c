@@ -10,7 +10,7 @@
 #include "rijndael.h"
 
 
-unsigned char S_BOX[256] = {
+static const unsigned char S_BOX[256] = {
         0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
         0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
         0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -29,7 +29,7 @@ unsigned char S_BOX[256] = {
         0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
 
-unsigned char INV_S_BOX[256] = {
+static const unsigned char INV_S_BOX[256] = {
         0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
         0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
         0x54, 0x7B, 0x94, 0x32, 0xA6, 0xC2, 0x23, 0x3D, 0xEE, 0x4C, 0x95, 0x0B, 0x42, 0xFA, 0xC3, 0x4E,
@@ -48,12 +48,38 @@ unsigned char INV_S_BOX[256] = {
         0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D
 };
 
-unsigned char ROUND_CONSTANT[32] = {
+static const unsigned char ROUND_CONSTANT[32] = {
         0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
         0x80, 0x1B, 0x36, 0x6C, 0xD8, 0xAB, 0x4D, 0x9A,
         0x2F, 0x5E, 0xBC, 0x63, 0xC6, 0x97, 0x35, 0x6A,
         0xD4, 0xB3, 0x7D, 0xFA, 0xEF, 0xC5, 0x91, 0x39
 };
+
+/**
+ * Perform multiplication in GF(2^8)
+ * @param polynomial_a         The first byte to be multiplied
+ * @param polynomial_b         The second byte to be multiplied
+ * @return                     The result of the multiplication
+ */
+static unsigned char MULTIPLY(unsigned char polynomial_a, unsigned char polynomial_b) {
+    unsigned char multiplication_result = 0; // Result of the finite field multiplication
+    // Iterate until polynomial_b becomes 0
+    while (polynomial_b) {
+        // If the least significant bit of polynomial_b is 1, XOR the multiplication_result with polynomial_a
+        if (polynomial_b & 0x01)
+            multiplication_result ^= polynomial_a;
+        // If the most significant bit of polynomial_a is 1, left shift polynomial_a and XOR with 0x1B (irreducible polynomial)
+        if (polynomial_a & 0x80)
+            polynomial_a = (polynomial_a << 1) ^ 0x1B;
+        else
+            // Otherwise, just left shift polynomial_a
+            polynomial_a <<= 1;
+        // Right shift polynomial_b to process the next bit
+        polynomial_b >>= 1;
+    }
+    return multiplication_result;
+}
+
 
 void
 aes_cypher_ops(unsigned char *encrypted_block, unsigned char *expanded_key, int *init_expanded_key, int *block_size);
@@ -106,30 +132,6 @@ void shift_rows(unsigned char *block) {
     block[3] = temp_byte_for_shift;
 }
 
-/**
- * Perform multiplication in GF(2^8)
- * @param x         The first byte to be multiplied
- * @param y         The second byte to be multiplied
- * @return          The result of the multiplication
- */
-unsigned char Multiply(unsigned char x, unsigned char y) {
-    unsigned char result = 0;
-    // Iterate until y becomes 0
-    while (y) {
-        // If the least significant bit of y is 1, XOR the result with x
-        if (y & 0x01)
-            result ^= x;
-        // If the most significant bit of x is 1, left shift x and XOR with 0x1B (irreducible polynomial)
-        if (x & 0x80)
-            x = (x << 1) ^ 0x1B;
-        else
-            // Otherwise, just left shift x
-            x <<= 1;
-        // Right shift y to process the next bit
-        y >>= 1;
-    }
-    return result;
-}
 
 /**
  * Perform MixColumns operation on the state block
@@ -143,15 +145,15 @@ void mix_columns(unsigned char *block) {
     for (int col = 0; col < 4; ++col) {
         // Extract the col from the block
         temp_column[4 * col + 0] =
-                Multiply(0x02, block[4 * col + 0]) ^ Multiply(0x03, block[4 * col + 1]) ^ block[4 * col + 2] ^
+                MULTIPLY(0x02, block[4 * col + 0]) ^ MULTIPLY(0x03, block[4 * col + 1]) ^ block[4 * col + 2] ^
                 block[4 * col + 3];
         temp_column[4 * col + 1] =
-                block[4 * col + 0] ^ Multiply(0x02, block[4 * col + 1]) ^ Multiply(0x03, block[4 * col + 2]) ^
+                block[4 * col + 0] ^ MULTIPLY(0x02, block[4 * col + 1]) ^ MULTIPLY(0x03, block[4 * col + 2]) ^
                 block[4 * col + 3];
-        temp_column[4 * col + 2] = block[4 * col + 0] ^ block[4 * col + 1] ^ Multiply(0x02, block[4 * col + 2]) ^
-                                   Multiply(0x03, block[4 * col + 3]);
-        temp_column[4 * col + 3] = Multiply(0x03, block[4 * col + 0]) ^ block[4 * col + 1] ^ block[4 * col + 2] ^
-                                   Multiply(0x02, block[4 * col + 3]);
+        temp_column[4 * col + 2] = block[4 * col + 0] ^ block[4 * col + 1] ^ MULTIPLY(0x02, block[4 * col + 2]) ^
+                                   MULTIPLY(0x03, block[4 * col + 3]);
+        temp_column[4 * col + 3] = MULTIPLY(0x03, block[4 * col + 0]) ^ block[4 * col + 1] ^ block[4 * col + 2] ^
+                                   MULTIPLY(0x02, block[4 * col + 3]);
     }
     // Write the mixed column back into the block
     for (int row = 0; row < BLOCK_SIZE; ++row) {
@@ -219,21 +221,21 @@ void invert_mix_columns(unsigned char *block) {
     // Iterate over each column
     for (int col = 0; col < 4; ++col) {
         temp[4 * col + 0] =
-                Multiply(0x0e, block[block_rows * col + 0]) ^ Multiply(0x0b, block[block_rows * col + 1]) ^
-                Multiply(0x0d, block[block_rows * col + 2]) ^
-                Multiply(0x09, block[block_rows * col + 3]);
+                MULTIPLY(0x0e, block[block_rows * col + 0]) ^ MULTIPLY(0x0b, block[block_rows * col + 1]) ^
+                MULTIPLY(0x0d, block[block_rows * col + 2]) ^
+                MULTIPLY(0x09, block[block_rows * col + 3]);
         temp[block_rows * col + 1] =
-                Multiply(0x09, block[block_rows * col + 0]) ^ Multiply(0x0e, block[block_rows * col + 1]) ^
-                Multiply(0x0b, block[block_rows * col + 2]) ^
-                Multiply(0x0d, block[block_rows * col + 3]);
+                MULTIPLY(0x09, block[block_rows * col + 0]) ^ MULTIPLY(0x0e, block[block_rows * col + 1]) ^
+                MULTIPLY(0x0b, block[block_rows * col + 2]) ^
+                MULTIPLY(0x0d, block[block_rows * col + 3]);
         temp[block_rows * col + 2] =
-                Multiply(0x0d, block[block_rows * col + 0]) ^ Multiply(0x09, block[block_rows * col + 1]) ^
-                Multiply(0x0e, block[block_rows * col + 2]) ^
-                Multiply(0x0b, block[block_rows * col + 3]);
+                MULTIPLY(0x0d, block[block_rows * col + 0]) ^ MULTIPLY(0x09, block[block_rows * col + 1]) ^
+                MULTIPLY(0x0e, block[block_rows * col + 2]) ^
+                MULTIPLY(0x0b, block[block_rows * col + 3]);
         temp[block_rows * col + 3] =
-                Multiply(0x0b, block[block_rows * col + 0]) ^ Multiply(0x0d, block[block_rows * col + 1]) ^
-                Multiply(0x09, block[block_rows * col + 2]) ^
-                Multiply(0x0e, block[block_rows * col + 3]);
+                MULTIPLY(0x0b, block[block_rows * col + 0]) ^ MULTIPLY(0x0d, block[block_rows * col + 1]) ^
+                MULTIPLY(0x09, block[block_rows * col + 2]) ^
+                MULTIPLY(0x0e, block[block_rows * col + 3]);
     }
 
     for (int i = 0; i < BLOCK_SIZE; ++i) {
