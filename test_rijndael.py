@@ -1,5 +1,6 @@
 import ctypes
 import unittest
+import aes.aes as aes
 
 
 class RijndaelTestBase(unittest.TestCase):
