@@ -91,10 +91,10 @@ void aes_decypher_ops(unsigned char *decrypt_block, unsigned char *key_expanded,
 /**
  * Substitutes each byte in the block with the corresponding value from the S-Box.
  * @param block     The block to be transformed.
- * @param length    The length of the block.
+ * @param size    The size of the block.
  */
-void sub_bytes(unsigned char *block, int length) {
-    for (int i = 0; i < length; i++) {
+void sub_bytes(unsigned char *block, int size) {
+    for (int i = 0; i < size; i++) {
         block[i] = S_BOX[block[i]];
     }
 }
