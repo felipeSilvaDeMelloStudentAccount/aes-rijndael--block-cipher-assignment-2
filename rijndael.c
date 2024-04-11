@@ -1,7 +1,7 @@
 /*
  * Felipe Silva de Mello
  * D23125661
- * 
+ *
  * Implementation of AES(Rijndael) encryption and decryption functions
  */
 
@@ -10,8 +10,6 @@
 #include "rijndael.h"
 
 
-// Define the S-box to lookup and perform the swaps operations during the encryption and decryption process
-// Each byte in the block will be replaced by the corresponding byte in the S-box table 
 static const unsigned char S_BOX[256] = {
         // 0     1     2     3     4     5     6     7     8     9     A     B     C     D     E     F
         0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76, // 0
@@ -31,7 +29,7 @@ static const unsigned char S_BOX[256] = {
         0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf, // E
         0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16  // F
 };
-//   Inverse S-Box definition
+
 static const unsigned char INV_S_BOX[256] = {
         0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
         0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
@@ -51,132 +49,159 @@ static const unsigned char INV_S_BOX[256] = {
         0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
 };
 
-// Define the round constants for key expansion
-static const unsigned char ROUND_CONSTANT[10] = {
-        0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36
+static const unsigned char ROUND_CONSTANT[32] = {
+        0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36
 };
 
-// Wrapper function for XTIME to be callable from Python ctypes
-unsigned char xtime_wrapper(unsigned char x) {
-    return XTIME(x);
+/**
+ * Perform multiplication in GF(2^8)
+ * @param polynomial_a         The first byte to be multiplied
+ * @param polynomial_b         The second byte to be multiplied
+ * @return                     The result of the multiplication
+ */
+static unsigned char MULTIPLY(unsigned char polynomial_a, unsigned char polynomial_b) {
+    unsigned char multiplication_result = 0; // Result of the finite field multiplication
+    // Iterate until polynomial_b becomes 0
+    while (polynomial_b) {
+        // If the least significant bit of polynomial_b is 1, XOR the multiplication_result with polynomial_a
+        if (polynomial_b & 0x01)
+            multiplication_result ^= polynomial_a;
+        // If the most significant bit of polynomial_a is 1, left shift polynomial_a and XOR with 0x1B (irreducible polynomial)
+        if (polynomial_a & 0x80)
+            polynomial_a = (polynomial_a << 1) ^ 0x1B;
+        else
+            // Otherwise, just left shift polynomial_a
+            polynomial_a <<= 1;
+        // Right shift polynomial_b to process the next bit
+        polynomial_b >>= 1;
+    }
+    return multiplication_result;
 }
 
 
-/*
- * Operations used when encrypting a block
+void
+aes_cypher_ops(unsigned char *encrypted_block, unsigned char *expanded_key, int *init_expanded_key, int *block_size);
+
+void
+final_aes_operation(int init_expanded_key, int block_size, unsigned char *encrypted_block, unsigned char *expanded_key);
+
+void aes_decypher_ops(unsigned char *decrypt_block, unsigned char *key_expanded, int *init_expanded_key,
+                      int *expanded_key_length);
+
+/**
+ * Substitutes each byte in the block with the corresponding value from the S-Box.
+ * @param block     The block to be transformed.
+ * @param length    The length of the block.
  */
-void sub_bytes(unsigned char *block) {
-    // Iterate over each byte in the block
-    for (size_t index = 0; index < BLOCK_SIZE; ++index) {
-        // Replace each byte with its S-Box equivalent
-        block[index] = S_BOX[block[index]];
+void sub_bytes(unsigned char *block, int length) {
+    for (int i = 0; i < length; i++) {
+        block[i] = S_BOX[block[i]];
     }
 }
 
+/**
+ * Shifts the rows of the state block to the left.
+ * @param block     The block to be transformed.
+ */
 void shift_rows(unsigned char *block) {
-    unsigned char tempByteForShift;
-
+    unsigned char temp_byte_for_shift;
     // Row 0 doesn't shift (i.e., row 0 in 0-indexed)
 
     // Row 1 - Shifts 1 to the left
-    tempByteForShift = block[1];
+    temp_byte_for_shift = block[1];
     block[1] = block[5];
     block[5] = block[9];
     block[9] = block[13];
-    block[13] = tempByteForShift;
+    block[13] = temp_byte_for_shift;
 
     // Row 2 - Shifts 2 to the left
-    tempByteForShift = block[2];
+    temp_byte_for_shift = block[2];
     block[2] = block[10];
-    block[10] = tempByteForShift;
-    tempByteForShift = block[6];
+    block[10] = temp_byte_for_shift;
+    temp_byte_for_shift = block[6];
     block[6] = block[14];
-    block[14] = tempByteForShift;
+    block[14] = temp_byte_for_shift;
 
     // Row 3 - Shifts 3 to the left (or one to the right)
-    tempByteForShift = block[15];
+    temp_byte_for_shift = block[15];
     block[15] = block[11];
     block[11] = block[7];
     block[7] = block[3];
-    block[3] = tempByteForShift;
+    block[3] = temp_byte_for_shift;
 }
 
 
 /**
- * Perform the MixColumns operation on a single column of the state block.
- * @param column The column to be mixed.
- */
-void mix_single_column(unsigned char *column) {
-    // Calculate the XOR of all bytes in the column
-    unsigned char columnXorResult = column[0] ^ column[1] ^ column[2] ^ column[3];
-    unsigned char originalFirstByte = column[0];
-
-    // Perform the mixing operation on each byte in the column
-    column[0] ^= columnXorResult ^ XTIME(column[0] ^ column[1]);
-    column[1] ^= columnXorResult ^ XTIME(column[1] ^ column[2]);
-    column[2] ^= columnXorResult ^ XTIME(column[2] ^ column[3]);
-    column[3] ^= columnXorResult ^ XTIME(column[3] ^ originalFirstByte);
-}
-
-/**
- * Perform the MixColumns operation on the state block.
- * @param block The block to be mixed.
+ * Perform MixColumns operation on the state block
+ *
+ * @param block The block to be mixed
  */
 void mix_columns(unsigned char *block) {
-    unsigned char column[4];
+// Temporary array to store the new block
+    unsigned char temp_column[BLOCK_SIZE];
+    // Loop through each column
     for (int col = 0; col < 4; ++col) {
-        // Extract the column from the block
-        for (int row = 0; row < 4; ++row) {
-            column[row] = BLOCK_ACCESS(block, row, col);
-        }
-
-        // Mix a single column
-        mix_single_column(column);
-
-        // Write the mixed column back into the block
-        for (int row = 0; row < 4; ++row) {
-            BLOCK_ACCESS(block, row, col) = column[row];
-        }
+        // Extract the col from the block
+        temp_column[4 * col + 0] =
+                MULTIPLY(0x02, block[4 * col + 0]) ^ MULTIPLY(0x03, block[4 * col + 1]) ^ block[4 * col + 2] ^
+                block[4 * col + 3];
+        temp_column[4 * col + 1] =
+                block[4 * col + 0] ^ MULTIPLY(0x02, block[4 * col + 1]) ^ MULTIPLY(0x03, block[4 * col + 2]) ^
+                block[4 * col + 3];
+        temp_column[4 * col + 2] = block[4 * col + 0] ^ block[4 * col + 1] ^ MULTIPLY(0x02, block[4 * col + 2]) ^
+                                   MULTIPLY(0x03, block[4 * col + 3]);
+        temp_column[4 * col + 3] = MULTIPLY(0x03, block[4 * col + 0]) ^ block[4 * col + 1] ^ block[4 * col + 2] ^
+                                   MULTIPLY(0x02, block[4 * col + 3]);
+    }
+    // Write the mixed column back into the block
+    for (int row = 0; row < BLOCK_SIZE; ++row) {
+        block[row] = temp_column[row];
     }
 }
 
-
 /*
  * Operations used when decrypting a block
+ *
+ * @param block         The block to be transformed.
+ * @param length        The length of the block.
  */
-void invert_sub_bytes(unsigned char *block) {
-    // Iterate over each byte in the block
-    for (size_t index = 0; index < BLOCK_SIZE; ++index) {
+void invert_sub_bytes(unsigned char *block, int length) {
+    for (int index = 0; index < length; index++) {
         // Replace each byte with its corresponding value from the inverse S-Box
         block[index] = INV_S_BOX[block[index]];
     }
 }
 
 
+/**
+ * The function applies the inverse shift rows transformation
+ *
+ * @param block         The block to be transformed.
+ */
 void invert_shift_rows(unsigned char *block) {
-    unsigned char tempByteForShift;
+    unsigned char temp_byte_for_shift;
 
     // Invert shift for row 1 (shift right by 1)
-    tempByteForShift = block[13];
+    temp_byte_for_shift = block[13];
     block[13] = block[9];
     block[9] = block[5];
     block[5] = block[1];
-    block[1] = tempByteForShift;
+    block[1] = temp_byte_for_shift;
 
     // Invert shift for row 2 (shift right by 2)
-    tempByteForShift = block[2];
-    block[2] = block[10];
-    block[10] = tempByteForShift;
-    tempByteForShift = block[6];
-    block[6] = block[14];
-    block[14] = tempByteForShift;
+    temp_byte_for_shift = block[10];
+    block[10] = block[2];
+    block[2] = temp_byte_for_shift;
+    temp_byte_for_shift = block[14];
+    block[14] = block[6];
+    block[6] = temp_byte_for_shift;
 
     // Invert shift for row 3 (shift right by 3, equivalent to shifting left by 1)
-    tempByteForShift = block[3];
+    temp_byte_for_shift = block[3];
     block[3] = block[7];
     block[7] = block[11];
     block[11] = block[15];
-    block[15] = tempByteForShift;
+    block[15] = temp_byte_for_shift;
 }
 
 
@@ -188,33 +213,33 @@ void invert_shift_rows(unsigned char *block) {
  *
  * @param block A pointer to the 16-byte block to be transformed.
  */
-void inv_mix_columns(unsigned char *block) {
+void invert_mix_columns(unsigned char *block) {
+    unsigned char temp[BLOCK_SIZE];
+    int block_rows = BLOCK_ROWS;
     // Iterate over each column
-    for (int col = 0; col < 4; col++) {
-        // Calculate intermediate values for the transformation
-        // double_xor_first_third is the result of doubling the XOR of the first and third bytes in the column
-        unsigned char double_xor_first_third =
-                XTIME(XTIME(BLOCK_ACCESS(block, 0, col) ^ BLOCK_ACCESS(block, 2, col)));
-        // double_xor_second_fourth is the result of doubling the XOR of the second and fourth bytes in the column
-        unsigned char double_xor_second_fourth =
-                XTIME(XTIME(BLOCK_ACCESS(block, 1, col) ^ BLOCK_ACCESS(block, 3, col)));
-
-        // Apply the transformation to each byte in the column
-        // XOR the first byte with the calculated value
-        BLOCK_ACCESS(block, 0, col) ^= double_xor_first_third;
-        // XOR the second byte with the calculated value
-        BLOCK_ACCESS(block, 1, col) ^= double_xor_second_fourth;
-        // XOR the third byte with the same value as the first byte
-        BLOCK_ACCESS(block, 2, col) ^= double_xor_first_third;
-        // XOR the fourth byte with the same value as the second byte
-        BLOCK_ACCESS(block, 3, col) ^= double_xor_second_fourth;
+    for (int col = 0; col < 4; ++col) {
+        temp[4 * col + 0] =
+                MULTIPLY(0x0e, block[block_rows * col + 0]) ^ MULTIPLY(0x0b, block[block_rows * col + 1]) ^
+                MULTIPLY(0x0d, block[block_rows * col + 2]) ^
+                MULTIPLY(0x09, block[block_rows * col + 3]);
+        temp[block_rows * col + 1] =
+                MULTIPLY(0x09, block[block_rows * col + 0]) ^ MULTIPLY(0x0e, block[block_rows * col + 1]) ^
+                MULTIPLY(0x0b, block[block_rows * col + 2]) ^
+                MULTIPLY(0x0d, block[block_rows * col + 3]);
+        temp[block_rows * col + 2] =
+                MULTIPLY(0x0d, block[block_rows * col + 0]) ^ MULTIPLY(0x09, block[block_rows * col + 1]) ^
+                MULTIPLY(0x0e, block[block_rows * col + 2]) ^
+                MULTIPLY(0x0b, block[block_rows * col + 3]);
+        temp[block_rows * col + 3] =
+                MULTIPLY(0x0b, block[block_rows * col + 0]) ^ MULTIPLY(0x0d, block[block_rows * col + 1]) ^
+                MULTIPLY(0x09, block[block_rows * col + 2]) ^
+                MULTIPLY(0x0e, block[block_rows * col + 3]);
     }
 
-    // Call mix_columns as part of the inversion process
-    // This is necessary to correctly apply the inverse mix columns transformation
-    mix_columns(block);
+    for (int i = 0; i < BLOCK_SIZE; ++i) {
+        block[i] = temp[i];
+    }
 }
-
 
 /*
  * This operation is shared between encryption and decryption
@@ -223,96 +248,238 @@ void inv_mix_columns(unsigned char *block) {
  * Both the block and the round_key are 128 bits,
  * represented here as arrays of 16 bytes.
  *
- * @param block The current block of the AES encryption/decryption process.
- * @param round_key The round key to be combined with the block.
+ * @param block     The block to be XORed
+ * @param round_key The round key to XOR with the block
+ * @param start     The start index of the round key
+ * @param end       The end index of the round key
  */
-void add_round_key(unsigned char *block, unsigned char *round_key) {
-    for (size_t byteIndex = 0; byteIndex < BLOCK_SIZE; ++byteIndex) {
-        // XOR each byte of the state with the corresponding byte of the round key
-        block[byteIndex] ^= round_key[byteIndex];
+void add_round_key(unsigned char *block, unsigned char *round_key, int start, int end) {
+    int key = 0;
+    for (int byte_index = start; byte_index < end; byte_index++) {
+        block[key] ^= round_key[byte_index];
+        key++;
     }
 }
 
-// Define the block size and the number of rounds
-void applySBoxToWord(unsigned char *word) {
-    for (int byteIndex = 0; byteIndex < WORD_LENGTH; ++byteIndex) {
-        // Apply S-Box transformation to each byte of the word
-        word[byteIndex] = S_BOX[word[byteIndex]]; // Assuming S_BOX is defined elsewhere
-    }
-}
 
-// Rotate the bytes in a word one position to the left
-void rotateWordLeft(unsigned char *word) {
-    unsigned char firstByte = word[0]; // Store the first byte of the word
-    for (int byteIndex = 0; byteIndex < WORD_LENGTH - 1; ++byteIndex) {
-        // Shift each byte one position to the left
-        word[byteIndex] = word[byteIndex + 1];
-    }
-    word[WORD_LENGTH - 1] = firstByte; // Move the first byte to the end of the word
-}
-
-/*
- * This function should expand the round key. Given an input,
- * which is a single 128-bit key, it should return a 176-byte
- * vector, containing the 11 round keys one after the other
+/**
+ * Expands the given cipher key to generate 11 round keys.
+ * The function takes a 128-bit cipher key and expands it
+ * to generate 11 round keys, each of which is 128 bits long.
+ * The round keys are stored in a single array of 176 bytes.
+ * The first 16 bytes are the original key, and the remaining
+ * 160 bytes are the 11 round keys.
+ * The key expansion process involves circular shifts, S-Box
+ * substitutions, and XOR operations with round constants.
+ * The round constants are used to introduce non-linearity into
+ * the key expansion process.
+ * @param cipher_key        The 128-bit cipher key to be expanded.
+ * @return                  A pointer to the expanded key.
  */
 unsigned char *expand_key(unsigned char *cipher_key) {
     // Allocate memory for the expanded key
-    unsigned char *expandedKey = malloc(EXPANDED_KEY_LENGTH);
-    if (!expandedKey) {
-        return NULL; // Memory allocation failed
-    }
+    unsigned char *expanded_key = (unsigned char *) malloc(BLOCK_SIZE * 11);
 
-    int bytes_generated = 0;
-    unsigned char temp_word[WORD_LENGTH];
+    int first_row = 0;
+    int last_row = 3;
     // Index to the round constant
-    unsigned char roundConIndex = 0;
+    int round_index = 1;
+    int block_size = BLOCK_SIZE;
+    int block_rows = BLOCK_ROWS;
 
-    // Copy the original cipher key to the beginning of the expanded key
-    memcpy(expandedKey, cipher_key, BLOCK_SIZE);
-    bytes_generated += BLOCK_SIZE;
+    // Iterating 11 times to expand the keys
+    for (int first_loop = 0; first_loop < 11; first_loop++) {
 
-    // Generate the remaining round keys
-    while (bytes_generated < EXPANDED_KEY_LENGTH) {
-        // Copy the last generated word into temp_word
-        memcpy(temp_word, expandedKey + bytes_generated - WORD_LENGTH, WORD_LENGTH);
+        // Copying all key to expand_key array
+        if (first_loop == 0) {
+            for (int i = 0; i < BLOCK_SIZE; i++)
+                expanded_key[i] = cipher_key[i];
+        } else {
+            char rotate[4] = {BLOCK_ACCESS(expanded_key, last_row, 1), BLOCK_ACCESS(expanded_key, last_row, 2),
+                              BLOCK_ACCESS(expanded_key, last_row, 3), BLOCK_ACCESS(expanded_key, last_row, 0)};
+            sub_bytes(rotate, block_rows);
+            for (int innerLoop = 0; innerLoop < block_rows; innerLoop++) {
+                // First first_row of the block
+                if (innerLoop == 0) {
+                    // XOR with round constant and rotate   1 byte to left
+                    expanded_key[block_size] =
+                            BLOCK_ACCESS(expanded_key, first_row, 0) ^ ROUND_CONSTANT[round_index++] ^ rotate[0];
+                    // XOR with previous first_row  1 byte to left
+                    expanded_key[block_size + 1] = BLOCK_ACCESS(expanded_key, first_row, 1) ^ rotate[1];
+                    // XOR with previous first_row    2 byte to left
+                    expanded_key[block_size + 2] = BLOCK_ACCESS(expanded_key, first_row, 2) ^ rotate[2];
+                    // XOR with previous first_row    3 byte to left
+                    expanded_key[block_size + 3] = BLOCK_ACCESS(expanded_key, first_row, 3) ^ rotate[3];
+                    // Incrementing the block index and first_row
+                    first_row += 1;
+                    block_size += block_rows;
+                } else {
+                    // XOR with previous first_row and previous block
+                    expanded_key[block_size] =
+                            BLOCK_ACCESS(expanded_key, first_row, 0) ^ expanded_key[block_size - block_rows];
+                    // XOR with previous first_row  1 byte to left
+                    expanded_key[block_size + 1] =
+                            BLOCK_ACCESS(expanded_key, first_row, 1) ^ expanded_key[block_size - 3];
+                    // XOR with previous first_row  2 byte to left
+                    expanded_key[block_size + 2] =
+                            BLOCK_ACCESS(expanded_key, first_row, 2) ^ expanded_key[block_size - 2];
+                    // XOR with previous first_row  3 byte to left
+                    expanded_key[block_size + 3] =
+                            BLOCK_ACCESS(expanded_key, first_row, 3) ^ expanded_key[block_size - 1];
 
-        // Perform the key schedule core every 16 bytes
-        if (bytes_generated % BLOCK_SIZE == 0) {
-            // Perform the key schedule core (rot_word and applySBoxToWord)
-            rotateWordLeft(temp_word);
-            applySBoxToWord(temp_word);
-            // XOR the first byte of temp_word with the round constant
-            temp_word[0] ^= ROUND_CONSTANT[roundConIndex++];
-        }
-
-        // XOR the temp_word word with the word BLOCK_SIZE bytes before it
-        for (int i = 0; i < WORD_LENGTH; ++i) {
-            // XOR each byte of the temp_word word with the corresponding byte of the word BLOCK_SIZE bytes before it
-            expandedKey[bytes_generated] = expandedKey[bytes_generated - BLOCK_SIZE] ^ temp_word[i];
-            // Increment the number of bytes generated
-            bytes_generated++;
+                    // Incrementing the block index
+                    block_size += block_rows;
+                    // Incrementing the first_row
+                    first_row += 1;
+                }
+            }
+            // Reset the first_row and last_row
+            last_row += block_rows;
         }
     }
-    // Return the expanded key
-    return expandedKey;
+    return expanded_key;
 }
 
-/*
- * The implementations of the functions declared in the
- * header file should go here
+/**
+ * Perform the final AES operation Helper Method
+ * @param init_expanded_key     The initial expanded key
+ * @param block_size            The block size
+ * @param encrypted_block       The block to be encrypted
+ * @param expanded_key          The expanded key
+ */
+void final_aes_operation(int init_expanded_key, int block_size, unsigned char *encrypted_block,
+                         unsigned char *expanded_key) {
+    sub_bytes(encrypted_block, BLOCK_SIZE);
+    shift_rows(encrypted_block);
+    init_expanded_key += BLOCK_SIZE;
+    block_size += BLOCK_SIZE;
+    add_round_key(encrypted_block, expanded_key, init_expanded_key, block_size);
+}
+
+/**
+ * Perform AES operations Helper Method
+ *
+ * @param encrypted_block       The block to be encrypted
+ * @param expanded_key          The expanded key
+ * @param init_expanded_key     The initial expanded key
+ * @param block_size            The block size
+ */
+void aes_cypher_ops(unsigned char *encrypted_block, unsigned char *expanded_key, int *init_expanded_key,
+                    int *block_size) {// Perform AES operations
+    sub_bytes(encrypted_block, BLOCK_SIZE);
+    shift_rows(encrypted_block);
+    mix_columns(encrypted_block);
+
+    // Update the expanded key index
+    (*init_expanded_key) += BLOCK_SIZE;
+    // Update the block size
+    (*block_size) += BLOCK_SIZE;
+    // Add the round key    to the block of data    using the expanded key  and the block size  and the initial expanded key
+    add_round_key(encrypted_block, expanded_key, (*init_expanded_key), (*block_size));
+}
+
+
+/**
+ * Encrypts a single block of plaintext using AES encryption algorithm.
+ * The function takes a 128-bit plaintext block and a 128-bit key
+ * and encrypts the plaintext using the key. The function performs
+ * AES encryption on the plaintext block using the key and returns
+ * the encrypted block.
+ * @param plaintext     The plaintext block to be encrypted.
+ * @param key           The encryption key.
+ * @return              The encrypted block.
  */
 unsigned char *aes_encrypt_block(unsigned char *plaintext, unsigned char *key) {
-    // TODO: Implement me!
-    unsigned char *output =
-            (unsigned char *) malloc(sizeof(unsigned char) * BLOCK_SIZE);
-    return output;
+
+    int init_expanded_key = 0;
+    int block_size = BLOCK_SIZE;
+    // Allocate memory for the encrypted block of data
+    unsigned char *encrypted_block =
+            (unsigned char *) malloc(sizeof(unsigned char) * block_size);
+
+    unsigned char *expanded_key = expand_key(key);
+
+    // Copy the plaintext to the encrypted block
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        encrypted_block[i] = plaintext[i];
+    }
+    // Add the initial round key to the block of data
+    add_round_key(encrypted_block, key, init_expanded_key, block_size);
+
+    // Perform AES operations for 10 rounds
+    for (int i = 1; i < NUMBER_OF_ROUNDS; i++) {
+        aes_cypher_ops(encrypted_block, expanded_key, &init_expanded_key, &block_size);
+
+    }
+    // Perform the final round of AES operations
+    final_aes_operation(init_expanded_key, block_size, encrypted_block, expanded_key);
+
+    return encrypted_block; // Return the encrypted block
 }
 
-unsigned char *aes_decrypt_block(unsigned char *ciphertext,
-                                 unsigned char *key) {
-    // TODO: Implement me!
-    unsigned char *output =
-            (unsigned char *) malloc(sizeof(unsigned char) * BLOCK_SIZE);
-    return output;
+
+void aes_decypher_ops(unsigned char *decrypt_block, unsigned char *key_expanded, int *init_expanded_key,
+                      int *expanded_key_length) {// Update key index range for the current round starting from the last to first
+    (*init_expanded_key) -= BLOCK_SIZE;
+    (*expanded_key_length) -= BLOCK_SIZE;
+
+    // Add the round key
+    add_round_key(decrypt_block, key_expanded, (*init_expanded_key), (*expanded_key_length));
+
+    // Perform inverse MixColumns, ShiftRows, and SubBytes operations
+    invert_mix_columns(decrypt_block);
+    invert_shift_rows(decrypt_block);
+    invert_sub_bytes(decrypt_block, BLOCK_SIZE);
 }
+
+
+/*
+  Function to decrypt a single block of ciphertext
+  using AES decryption algorithm.
+
+  Parameters:
+  - ciphertext: Pointer to the block of ciphertext data to be decrypted.
+  - key: Pointer to the decryption key.
+
+  Returns:
+  - Pointer to the decrypted block of data.
+
+  The size of ciphertext and key should be 128 bits (BLOCK_SIZE bytes).
+*/
+unsigned char *aes_decrypt_block(unsigned char *ciphertext, unsigned char *key) {
+    int init_expanded_key = 160;
+    int expanded_key_length = EXPANDED_KEY_LENGTH;
+
+    unsigned char *decrypt_block =
+            (unsigned char *) malloc(sizeof(unsigned char) * BLOCK_SIZE);
+
+    // Copy ciphertext to decrypt_block block
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        decrypt_block[i] = ciphertext[i];
+    }
+
+    unsigned char *key_expanded = expand_key(key);
+
+    // Add the initial round key
+    add_round_key(decrypt_block, key_expanded, init_expanded_key, expanded_key_length);
+
+    // Perform inverse ShiftRows and SubBytes operations
+    invert_shift_rows(decrypt_block);
+    invert_sub_bytes(decrypt_block, BLOCK_SIZE);
+
+    //iterating 10 time as this is 128 bit
+    for (int i = NUMBER_OF_ROUNDS; i > 1; i--) {
+        aes_decypher_ops(decrypt_block, key_expanded, &init_expanded_key, &expanded_key_length);
+
+    }
+
+    // Update key index range for the final round
+    init_expanded_key -= BLOCK_SIZE;
+    expanded_key_length -= BLOCK_SIZE;
+
+    // Add the final round key
+    add_round_key(decrypt_block, key_expanded, init_expanded_key, expanded_key_length);
+
+    return decrypt_block;  // Return the decrypted block
+}
+
