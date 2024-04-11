@@ -7,6 +7,7 @@ CC ?= cc
 # Create main executable and shared library
 all: main rijndael.so
 
+
 main: rijndael.o main.c
 	# Create main executable
 	$(CC) -o main main.c rijndael.o
@@ -21,7 +22,13 @@ rijndael.so: rijndael.o
 
 # call test target
 	$(MAKE) test
-test:
+
+# Initialize and update git submodules
+init-submodules:
+	# Initialize and update git submodules
+	git submodule update --init --recursive
+
+test: init-submodules
 	# Run Python unit tests for the rijndael.so shared library
 	echo "Running Python Unit tests for the rijndael.so shared library..."
 	python3 test_rijndael.py
@@ -29,6 +36,7 @@ test:
 clean:
 	# Remove all object files, shared libraries, and executables
 	rm -f *.o *.so main
+
 
 # Instructions:
 # - To build everything and run Python tests, type 'make' or 'make test'
