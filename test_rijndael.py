@@ -219,5 +219,12 @@ class TestDecrypt(unittest.TestCase):
         self.assertEqual(c_decrypted_bytes, py_decrypted_bytes)
 
 
+def run():
+    unittest.main()
+
 if __name__ == '__main__':
     unittest.main()
+
+    # Before runing this test make sure you have compiled the shared object file
+    # gcc -o rijndael.o rijndael.c
+    # gcc -fPIC -shared -o rijndael.so rijndael.c
