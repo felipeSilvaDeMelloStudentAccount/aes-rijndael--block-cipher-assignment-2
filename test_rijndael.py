@@ -222,6 +222,7 @@ class TestDecrypt(unittest.TestCase):
 def run():
     unittest.main()
 
+
 if __name__ == '__main__':
     unittest.main()
 
