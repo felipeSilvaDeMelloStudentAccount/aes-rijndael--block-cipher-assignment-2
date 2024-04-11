@@ -24,7 +24,7 @@ rijndael.so: rijndael.o
 test:
 	# Run Python unit tests for the rijndael.so shared library
 	echo "Running Python Unit tests for the rijndael.so shared library..."
-	python3 test.py
+	python3 test_rijndael.py
 
 clean:
 	# Remove all object files, shared libraries, and executables
