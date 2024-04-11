@@ -12,6 +12,7 @@
 #define EXPANDED_KEY_LENGTH 176
 #define NUMBER_OF_ROUNDS 10
 
+
 /*
  * These should be the main encrypt/decrypt functions (i.e. the main
  * entry point to the library for programmes hoping to use it to
