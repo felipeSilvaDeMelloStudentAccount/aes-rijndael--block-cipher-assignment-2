@@ -57,5 +57,3 @@ To properly clone this project along with its submodules, follow these steps:
    - `make`: Compiles and builds the library and any additional required files.
    - `make test`: Compiles, builds, and runs the unit tests for the library.
    - `make clean`: Cleans up the build, removing all generated files.
-
-
