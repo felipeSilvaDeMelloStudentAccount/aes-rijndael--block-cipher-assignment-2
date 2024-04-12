@@ -1,9 +1,13 @@
 # Secure Systems Development
-## Assignment 2: The Advanced Encryption Standard (AES)
+### Assignment 2: The Advanced Encryption Standard (AES)
 ### Weight: 40%
+### Student Info
+- Felipe Silva de Mello
+-  D23125661
 
-#### Objective
 
+
+# Assignment Objective
 The aim of this assignment is to implement the 128-bit variant of AES as a C library. 
 The header file, `rijndael.h`, exposes two main functions to the user:
 - `unsigned char *aes_encrypt_block(unsigned char *plaintext, unsigned char *key)`
@@ -33,26 +37,25 @@ The library must implement the algorithm in full, without using any third-party 
 It also may not use instructions in your CPU's instruction set that implement AES in hardware. 
 Use of non-cryptographic functions in the C standard library is allowed.
 
+# Steps to Run the Program
+Ensure that you have a C compiler (such as `gcc`) installed on your system and accessible from your command line or terminal.
 #### Working with Git and Git Submodules
 This project uses Git submodules to include external libraries or shared components. Specifically, it incorporates the AES library from the following Git repository as a submodule: [https://github.com/boppreh/aes/](https://github.com/boppreh/aes/).
 
 To properly clone this project along with its submodules, follow these steps:
 1. Clone the project repository:
-- git clone <https://github.com/felipeSilvaDeMelloStudentAccount/aes-rijndael--block-cipher-assignment-2>
+   - git clone <https://github.com/felipeSilvaDeMelloStudentAccount/aes-rijndael--block-cipher-assignment-2>
 
 2. Initialize and update the submodules:
-    - cd aes-rijndael--block-cipher-assignment-2
-    - git submodule init
-    - git submodule update
+   - cd aes-rijndael--block-cipher-assignment-2
+   - git submodule init
+   - git submodule update
 
 
 #### Building and Running
+3. To compile and build the library along with its test cases, you can use the provided Makefile. Use the following commands:
+   - `make`: Compiles and builds the library and any additional required files.
+   - `make test`: Compiles, builds, and runs the unit tests for the library.
+   - `make clean`: Cleans up the build, removing all generated files.
 
-To compile and build the library along with its test cases, you can use the provided Makefile. Use the following commands:
-
-- `make`: Compiles and builds the library and any additional required files.
-- `make test`: Compiles, builds, and runs the unit tests for the library.
-- `make clean`: Cleans up the build, removing all generated files.
-
-Ensure that you have a C compiler (such as `gcc`) installed on your system and accessible from your command line or terminal.
 
