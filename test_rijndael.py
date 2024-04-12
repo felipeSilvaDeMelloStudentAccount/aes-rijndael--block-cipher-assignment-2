@@ -32,37 +32,41 @@ c_aes.mix_columns.restype = ctypes.c_voidp
 c_aes.invert_mix_columns.restype = ctypes.c_voidp
 
 
+# Test cases for the AES implementation
 class TestSubBytes(unittest.TestCase):
+    # Test the SubBytes transformation
     def test_sub_bytes(self):
         test_block = bytearray([0x32, 0x88, 0x31, 0xe0, 0x43, 0x5a, 0x31, 0x37,
                                 0xf6, 0x30, 0x98, 0x07, 0xa8, 0x8d, 0xa2, 0x34])
         expected_block = bytearray([aes.s_box[b] for b in test_block])
+        # Convert the input block to a ctypes array of bytes
         c_test_block = (ctypes.c_ubyte * len(test_block))(*test_block)
-        # Perform the SubBytes transformation
+        # Call the SubBytes transformation from the C shared library
         c_aes.sub_bytes(c_test_block, len(test_block))
-        # Convert back to Python bytearray for comparison
+        # Convert the result back to a bytearray
         c_result_block = bytearray(c_test_block)
+        # Compare the result with the expected output
         self.assertEqual(c_result_block, expected_block,
                          "The SubBytes transformation did not match the expected output.")
 
     def test_compare_sub_bytes(self):
         test_c = b'\x32\x14\x2E\x56\x43\x09\x46\x1B\x4B\x11\x33\x11\x04\x08\x06\x63'
         text_py = b'\x32\x14\x2E\x56\x43\x09\x46\x1B\x4B\x11\x33\x11\x04\x08\x06\x63'
+        # Convert the input block to a ctypes array of bytes
         text_array = (ctypes.c_ubyte * len(test_c))(*test_c)
+        # Call the SubBytes transformation from the C shared library
         c_aes.sub_bytes(text_array, 16)
+        # Call the SubBytes transformation from the python implementation
         aes.sub_bytes(aes.bytes2matrix(text_py))
+        # Compare the C implementation with the python implementation
         self.assertEqual(list(test_c), list(text_py))
 
     def test_fail_sub_bytes(self):
         text_c = b'\x32\x14\x2E\x56\x43\x09\x46\x1B\x4B\x12\x33\x11\x04\x08\x06\x63'
         text_py = b'\x32\x14\x2E\x56\x43\x09\x46\x1B\x4B\x11\x33\x11\x04\x08\x06\x63'
-
         text_array = (ctypes.c_ubyte * len(text_c))(*text_c)
-
         c_aes.sub_bytes(text_array, 16)
-
         aes.sub_bytes(aes.bytes2matrix(text_py))
-
         self.assertNotEqual(list(text_c), list(text_py))
 
 
@@ -196,26 +200,42 @@ class TestExpandKey(unittest.TestCase):
 class TestEncrypt(unittest.TestCase):
 
     def test_c_aes_encrypt_block(self):
+        # Test the encryption of a single block
         plaintext = b'\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F'
+        # The key for the encryption
         key = b'\x32\x14\x2E\x56\x43\x09\x46\x1B\x4B\x11\x33\x11\x04\x08\x06\x63'
+        # Convert the input block to a ctypes array of bytes
         text_array = (ctypes.c_ubyte * len(plaintext))(*plaintext)
+        # Convert the key to a ctypes array of bytes
         key_arr = (ctypes.c_ubyte * len(key))(*key)
+        # Call the encryption function from the C shared library
         encrypted_data = c_aes.aes_encrypt_block(text_array, key_arr)
+        # Convert the result back to a bytearray
         c_encrypted_bytes = bytes(encrypted_data[:16])
+        # Encrypt the plaintext using the python implementation
         py_encrypted_bytes = aes.AES(key).encrypt_block(plaintext)
+        # Compare the C implementation with the python implementation
         self.assertEqual(c_encrypted_bytes, py_encrypted_bytes)
 
 
 class TestDecrypt(unittest.TestCase):
 
     def test_c_aes_decrypt_block(self):
+        # Test the decryption of a single block
         cipher_text = b'\x4b\x95\x86\x93\xb4\xe9\xc4\xeb\x92\xaf\xe8t\xb1\x40\xe0\xce'
+        # The key for the decryption
         key = b'\x32\x14\x2E\x56\x43\x09\x46\x1B\x4B\x11\x33\x11\x04\x08\x06\x63'
+        # Convert the input block to a ctypes array of bytes
         cipher_text_arr = (ctypes.c_ubyte * len(cipher_text))(*cipher_text)
+        # Convert the key to a ctypes array of bytes
         key_arr = (ctypes.c_ubyte * len(key))(*key)
+        # Call the decryption function from the C shared library
         decrypted_data = c_aes.aes_decrypt_block(cipher_text_arr, key_arr)
+        # Convert the result back to a bytearray
         c_decrypted_bytes = bytes(decrypted_data[:16])
+        # Decrypt the cipher text using the python implementation
         py_decrypted_bytes = aes.AES(key).decrypt_block(cipher_text)
+        # Compare the C implementation with the python implementation
         self.assertEqual(c_decrypted_bytes, py_decrypted_bytes)
 
 
